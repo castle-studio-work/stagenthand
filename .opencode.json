@@ -1,0 +1,9 @@
+{
+  "model": "cliproxyapi/claude-sonnet-4-6",
+  "provider": {
+    "cliproxyapi": {
+      "apiKey": "your-api-key-1",
+      "baseURL": "http://127.0.0.1:8317/v1"
+    }
+  }
+}
