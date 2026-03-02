@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/castle-studio-work/stagenthand/internal/domain"
+	"github.com/baochen10luo/stagenthand/internal/domain"
 )
 
 func TestJobStatus_String(t *testing.T) {
