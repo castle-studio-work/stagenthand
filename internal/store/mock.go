@@ -11,13 +11,15 @@ import (
 type MockJobRepository struct {
 	mu   sync.RWMutex
 	jobs map[string]*domain.Job
+	Fail bool
 }
 
-func NewMockJobRepository() JobRepository {
+func NewMockJobRepository() *MockJobRepository {
 	return &MockJobRepository{jobs: make(map[string]*domain.Job)}
 }
 
 func (m *MockJobRepository) Create(job *domain.Job) error {
+	if m.Fail { return ErrInternal }
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.jobs[job.ID] = job
@@ -25,6 +27,7 @@ func (m *MockJobRepository) Create(job *domain.Job) error {
 }
 
 func (m *MockJobRepository) GetByID(id string) (*domain.Job, error) {
+	if m.Fail { return nil, ErrInternal }
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	j, ok := m.jobs[id]
@@ -35,6 +38,7 @@ func (m *MockJobRepository) GetByID(id string) (*domain.Job, error) {
 }
 
 func (m *MockJobRepository) UpdateStatus(id string, status domain.JobStatus, errMsg string) error {
+	if m.Fail { return ErrInternal }
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	j, ok := m.jobs[id]
@@ -50,13 +54,15 @@ func (m *MockJobRepository) UpdateStatus(id string, status domain.JobStatus, err
 type MockCheckpointRepository struct {
 	mu   sync.RWMutex
 	cps  map[string]*domain.Checkpoint
+	Fail bool
 }
 
-func NewMockCheckpointRepository() CheckpointRepository {
+func NewMockCheckpointRepository() *MockCheckpointRepository {
 	return &MockCheckpointRepository{cps: make(map[string]*domain.Checkpoint)}
 }
 
 func (m *MockCheckpointRepository) Create(cp *domain.Checkpoint) error {
+	if m.Fail { return ErrInternal }
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.cps[cp.ID] = cp
@@ -64,6 +70,7 @@ func (m *MockCheckpointRepository) Create(cp *domain.Checkpoint) error {
 }
 
 func (m *MockCheckpointRepository) GetByID(id string) (*domain.Checkpoint, error) {
+	if m.Fail { return nil, ErrInternal }
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	cp, ok := m.cps[id]
@@ -74,6 +81,7 @@ func (m *MockCheckpointRepository) GetByID(id string) (*domain.Checkpoint, error
 }
 
 func (m *MockCheckpointRepository) ListByJobID(jobID string) ([]*domain.Checkpoint, error) {
+	if m.Fail { return nil, ErrInternal }
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	var result []*domain.Checkpoint
@@ -86,6 +94,7 @@ func (m *MockCheckpointRepository) ListByJobID(jobID string) ([]*domain.Checkpoi
 }
 
 func (m *MockCheckpointRepository) UpdateStatus(id string, status domain.CheckpointStatus, notes string) error {
+	if m.Fail { return ErrInternal }
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	cp, ok := m.cps[id]

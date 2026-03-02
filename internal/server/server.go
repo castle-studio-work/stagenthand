@@ -12,9 +12,9 @@ import (
 
 // Server wraps the Gin engine and its dependencies.
 type Server struct {
-	router  *gin.Engine
-	jobs    store.JobRepository
-	cps     store.CheckpointRepository
+	router *gin.Engine
+	jobs   store.JobRepository
+	cps    store.CheckpointRepository
 }
 
 // New creates a Server with the given repositories.
@@ -74,7 +74,10 @@ type updateRequest struct {
 
 func (s *Server) approveCheckpoint(c *gin.Context) {
 	var req updateRequest
-	_ = c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json"})
+		return
+	}
 	if err := s.cps.UpdateStatus(c.Param("id"), domain.CheckpointStatusApproved, req.Notes); err != nil {
 		if err == store.ErrNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "checkpoint not found"})
@@ -88,7 +91,10 @@ func (s *Server) approveCheckpoint(c *gin.Context) {
 
 func (s *Server) rejectCheckpoint(c *gin.Context) {
 	var req updateRequest
-	_ = c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json"})
+		return
+	}
 	if err := s.cps.UpdateStatus(c.Param("id"), domain.CheckpointStatusRejected, req.Notes); err != nil {
 		if err == store.ErrNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "checkpoint not found"})

@@ -9,8 +9,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// ErrNotFound is returned when a requested record does not exist.
-var ErrNotFound = errors.New("record not found")
+// Sentinel errors for store operations.
+var (
+	ErrNotFound = errors.New("record not found")
+	ErrInternal = errors.New("internal store error")
+)
 
 // DB wraps a gorm.DB instance.
 type DB = gorm.DB
