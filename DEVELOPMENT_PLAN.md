@@ -1,6 +1,6 @@
 # StagentHand 開發計劃書
 
-> 版本：v0.1
+> 版本：v0.2
 > 日期：2026-03-02
 > 負責人：005 瑪勒列（開發主管）
 > 狀態：前期規劃完成，Phase 1 待啟動
@@ -35,35 +35,99 @@ CLI-first AI 短劇製作 pipeline。在幕後讓製作動起來，不搶鏡。
 
 ---
 
+## 開發工作流：Claude + Codex 雙模型架構
+
+這是整個專案的施工核心，參考保羅分享的雙模型開發工作流文章。
+
+```
+瑪勒列（Claude / claude-sonnet-4-6）   → 施工隊長
+  寫測試 → 確認 fail → 寫實作 → 確認 pass → 推進流程
+
+gpt-5.2（openai-codex）               → 獨立審核員
+  read-only，從不同模型視角審查
+  輸出 ✅ Ready 或 ⛔ Blocked
+```
+
+### 為什麼兩個模型
+
+Claude 和 Codex 用不同訓練路徑，天然從不同角度看同一段 code。最容易漏掉的不是明顯寫錯的東西，而是「看起來合理、測試剛好沒蓋到」的那種。Codex 的價值就在這裡。
+
+### 工具鏈
+
+```
+opencode（施工環境）
+  └── claude-sonnet-4-6（主力施工，cliproxyapi）
+  └── gpt-5.2（MCP 接入，read-only reviewer，openai-codex）
+```
+
+opencode 在 `~/projects/stagenthand/` 目錄下運行，讀取 `.opencode.json` 與 `AGENTS.md`。
+
+### 每個函數的標準流程
+
+```
+1. 寫 *_test.go              → 確認 FAIL（紅燈）
+2. 寫最小實作                → 確認 PASS（綠燈）
+3. 觸發 Codex review         → 等待 ✅ / ⛔
+4. ⛔ Blocked → 修 → 回 step 3
+5. ✅ Ready → refactor → commit
+```
+
+### Codex review 的規則
+
+- 不把結論先餵給它，不用引導式問法
+- 讓它自己 `git diff`、`grep`、`cat` 去研究
+- 只問：「這個實作有什麼問題？」
+- 每次 review 保存 threadId，被擋後改完用 `--continue` 回同條 thread 再驗
+
+### 什麼時候觸發 review
+
+- 每個新函數完成後
+- 每個 Phase 完成後（全面 review）
+- 任何涉及 interface 定義的改動
+
+---
+
 ## Image Provider 策略
 
-### 主力：nano-banana-2（Gemini API）
+### 主力（開發期 + 正式期）：nano-banana-2
 
-- **成本**：Google 免費額度內，現有 API key 直接用
-- **特性**：支援多圖輸入（最多 14 張），透過「角色基準圖」達成角色一致性
-- **整合**：`uv run scripts/generate_image.py`，輸入 `--prompt --filename -i [ref_images]`
-- **限制**：無底層 seed 控制，靠 Gemini 理解力撐著
+**為什麼正式期也用它：**
+- Gemini API 免費額度充足，成本幾乎為零
+- 支援多圖輸入（最多 14 張）→ 角色一致性透過「角色基準圖」傳入
+- 雙語 prompt 支援佳（中英皆可）
+- 已在城堡體系驗證，整合風險低
 
-### 備援：Together AI / Fal.ai
+**整合方式：**
+```bash
+uv run scripts/generate_image.py \
+  --prompt "咖啡廳場景，主角坐在窗邊" \
+  --filename panel_001.png \
+  --resolution 1K \
+  -i character_ref_hero.png character_ref_cafe.png
+```
 
-- 定價 $0.01–0.04/張，一集 15 panel 約 $0.15–0.60
-- 介面設計留 `base_url` 可配置，任何 OpenAI-compatible endpoint 皆可接入
-- Z-Image-Turbo 自架版（ComfyUI API 模式）也可透過此管道接入
+**角色一致性設計：**
+- `Panel` struct 含 `CharacterRefs []string`（角色基準圖路徑）
+- pipeline 第一個 panel 生成後，把角色圖存到 `~/.shand/projects/<id>/refs/`
+- 後續 panel 自動帶入該 project 的角色基準圖
+
+### 備援 / 開源社群：OpenAI-compatible endpoint
+
+```yaml
+image:
+  provider: openai-compatible
+  base_url: http://localhost:8188/api  # ComfyUI API
+  # 或 https://api.together.xyz/v1   # Together AI $0.01-0.04/張
+  # 或任何跑 Z-Image-Turbo 的自架服務
+```
+
+`ImageClient` interface 不綁 provider，`base_url` 可配置。開源社群接入自己的 Z-Image / SDXL / 任意 API。
 
 ### Video：Grok（xAI）
 
-- API 已開放，OpenAI-compatible（`base_url: https://api.x.ai/v1`）
-- 接入成本低，VideoClient interface 實作與 OpenAI 幾乎相同
-- 列為 Phase 3 後期實作
-
-### 開源設計原則
-
-```
-ImageClient interface 不綁死任何 provider
-config.yaml 的 base_url 留空讓使用者填自己的 endpoint
-→ 自架 Z-Image / ComfyUI / Stable Diffusion API 皆可接入
-→ 社群補 provider，shand 本身保持乾淨
-```
+- API 開放，OpenAI-compatible（`base_url: https://api.x.ai/v1`）
+- `VideoClient` 實作與 OpenAI 幾乎相同，只換 `base_url` 和模型名
+- 列為 Phase 3 後期實作，預設 `video.enabled: false`
 
 ---
 
@@ -73,16 +137,26 @@ config.yaml 的 base_url 留空讓使用者填自己的 endpoint
 cmd/                    薄層：IO + 依賴注入，不含業務邏輯
 internal/
   domain/               純資料結構，零外部依賴
-  llm/                  LLMClient interface + OpenAI/Gemini 實作
-  image/                ImageClient interface + NanoBanana/Together 實作
-  video/                VideoClient interface + Grok 實作
-  store/                Repository pattern，JobRepo + CheckpointRepo
-  notify/               Notifier interface + Discord 實作
-  remotion/             RemotionExecutor interface + exec 實作
+  llm/                  LLMClient interface + OpenAI/Gemini 實作 + Mock
+  image/                ImageClient interface + NanoBanana/Compatible 實作 + Mock
+  video/                VideoClient interface + Grok 實作 + Mock
+  store/                Repository pattern：JobRepo + CheckpointRepo + Mock
+  notify/               Notifier interface + Discord 實作 + Mock
+  remotion/             RemotionExecutor interface + exec 實作 + Mock
   pipeline/             Orchestrator，依賴所有 interface
 config/                 viper 載入，~/.shand/config.yaml
 remotion-template/      React + Remotion，ShortDrama composition
 ```
+
+### SOLID 執行原則
+
+| 原則 | 實作方式 |
+|---|---|
+| Single Responsibility | 每個 package 只負責一個領域，store/ 不含業務邏輯 |
+| Open/Closed | 新 provider 只需實作 interface，不改既有代碼 |
+| Liskov Substitution | Mock 必須完全可替換真實實作，行為語意相同 |
+| Interface Segregation | LLMClient / ImageClient / VideoClient 各自獨立 |
+| Dependency Inversion | cmd/ 依賴 interface，具體實作透過 constructor injection |
 
 ### 核心資料流
 
@@ -94,7 +168,7 @@ Outline JSON
 Storyboard JSON
   ↓ storyboard-to-panels（LLM）
 Panel[] JSON（含 prompt、character_refs）
-  ↓ panels-to-images（ImageClient，goroutine 並發）
+  ↓ panels-to-images（ImageClient goroutine 並發）
 Panel[] JSON（含 image_url）
   ↓ storyboard-to-remotion-props
 RemotionProps JSON
@@ -108,51 +182,47 @@ mp4
 story → [outline ⏸] → [storyboard ⏸] → [images ⏸] → [final ⏸] → mp4
 ```
 
-每個 ⏸ 節點：
-1. Discord 通知（附摘要）
-2. 寫 Checkpoint record 到 SQLite（status: pending）
-3. pipeline 暫停輪詢
-4. 任何管道 approve → status: approved → 繼續
-
-**審核管道（三選一，皆指向同一 DB record）：**
+**三種審核管道（皆指向同一 SQLite Checkpoint record）：**
 - CLI：`shand checkpoint approve <id>`
-- Discord bot：回覆觸發 webhook
-- Agent：呼叫內部 Gin HTTP endpoint `POST /checkpoints/:id/approve`
+- Discord bot：回覆觸發 webhook → `POST /checkpoints/:id/approve`
+- Agent：直接呼叫 `POST /checkpoints/:id/approve`（Gin server on `:18080`）
 
 ---
 
 ## 開發階段
 
 ### Phase 1 — 骨架（第 1 週）
-**目標**：可以跑的 CLI，所有指令有佔位，store 與 config 完整
+**目標**：可以跑的 CLI，store 與 config 完整，Codex review 流程建立
 
 - [ ] cobra root + 所有 subcommand 佔位（`--dry-run` 支援）
 - [ ] viper config 載入（`~/.shand/config.yaml`）
-- [ ] domain/types.go（Project / Outline / Storyboard / Panel / Job / Checkpoint / RemotionProps）
-- [ ] SQLite store：JobRepository + CheckpointRepository（gorm）
+- [ ] `domain/types.go`（Project / Outline / Storyboard / Panel / Job / Checkpoint / RemotionProps）
+- [ ] SQLite store：JobRepository + CheckpointRepository（gorm）+ in-memory Mock
 - [ ] `shand status <job-id>`（含 `--wait` 輪詢）
 - [ ] `shand checkpoint list/show/approve/reject/wait`
-- [ ] Gin HTTP server（checkpoint API endpoint，供 agent 呼叫）
+- [ ] Gin HTTP server（`POST /checkpoints/:id/approve`，供 agent / Discord bot 呼叫）
+- [ ] `.opencode.json` + Codex review flow 建立
 - [ ] 測試覆蓋率 ≥ 80%
 
 **驗收標準**：
 ```bash
-shand status fake-job-id --dry-run  # 輸出假 JSON，exit 0
-shand checkpoint list               # 輸出空陣列 JSON
-go test -cover ./...                # ≥ 80%
+shand status fake-job-id --dry-run   # 輸出假 JSON，exit 0
+shand checkpoint list                # 輸出 [] JSON
+go test -cover ./...                 # ≥ 80%
+# Codex review Phase 1 → ✅ Ready
 ```
 
 ---
 
 ### Phase 2 — 文字 Skills（第 2 週）
-**目標**：完整文字 pipeline 可端到端跑通（dry-run 模式）
+**目標**：完整文字 pipeline dry-run 端到端通過
 
-- [ ] LLMClient interface + OpenAI-compatible 實作（支援 Gemini via base_url）
+- [ ] LLMClient interface + OpenAI-compatible 實作（Gemini via base_url）+ Mock
 - [ ] `shand story-to-outline`（`--episodes`、`--style`、`--lang`）
 - [ ] `shand outline-to-storyboard`（`--scenes-per-ep`）
-- [ ] `shand storyboard-to-panels`（`--panels-per-scene`，含 character_refs 欄位）
-- [ ] Prompt 模板（繁中短劇風格）
-- [ ] `--dry-run` 全面覆蓋：所有 skill 不呼叫 API，輸出固定 fixture
+- [ ] `shand storyboard-to-panels`（`--panels-per-scene`，含 `character_refs` 欄位）
+- [ ] Prompt 模板（繁中短劇風格，含角色描述 instruction）
+- [ ] `--dry-run` 全面覆蓋
 
 **驗收標準**：
 ```bash
@@ -160,28 +230,30 @@ echo "一個程序員愛上了咖啡師的故事" \
   | shand story-to-outline --dry-run \
   | shand outline-to-storyboard --dry-run \
   | shand storyboard-to-panels --dry-run
-# 全程輸出合法 JSON，exit 0
+# 合法 JSON，exit 0，Codex ✅
 ```
 
 ---
 
 ### Phase 3 — 圖像生成（第 3 週）
-**目標**：圖像 pipeline 可實際生成圖片
+**目標**：nano-banana-2 實際生成圖片，並發管控
 
-- [ ] ImageClient interface
-- [ ] nano-banana-2 實作（exec `uv run scripts/generate_image.py`，支援 `-i` 多圖角色參考）
-- [ ] OpenAI-compatible image 實作（Together AI / Fal.ai / 任意 endpoint）
-- [ ] `shand panel-to-image`（非同步 job 模式 + `--sync`）
-- [ ] `shand panels-to-images`（goroutine 並發，`--concurrency` 可設定）
-- [ ] Notifier interface + Discord webhook 實作
-- [ ] HITL checkpoint 通知觸發
+- [ ] ImageClient interface + Mock
+- [ ] nano-banana-2 實作（exec `uv run`，支援 `-i` 多圖角色參考）
+- [ ] OpenAI-compatible image 實作（備援 / 開源社群用）
+- [ ] `shand panel-to-image`（async job + `--sync`）
+- [ ] `shand panels-to-images`（goroutine 並發，`--concurrency` 可設）
+- [ ] 角色基準圖存取邏輯（`~/.shand/projects/<id>/refs/`）
+- [ ] Notifier interface + Discord webhook
 - [ ] API retry（3 次，指數退避 1s/2s/4s）
+- [ ] Grok VideoClient（`video.enabled: false` 預設）
 
 **驗收標準**：
 ```bash
-echo '[{"id":"p1","prompt":"一個程序員坐在咖啡廳","character_refs":[]}]' \
+# 實際呼叫 nano-banana-2 生成一張圖
+echo '[{"id":"p1","prompt":"咖啡廳場景","character_refs":[]}]' \
   | shand panels-to-images --provider nano-banana --sync
-# 輸出含 image_url 的 Panel[] JSON
+# Panel[] JSON 含有效 image_url，Codex ✅
 ```
 
 ---
@@ -189,62 +261,45 @@ echo '[{"id":"p1","prompt":"一個程序員坐在咖啡廳","character_refs":[]}
 ### Phase 4 — Remotion 整合（第 4 週）
 **目標**：從 panel 到 mp4 全流程打通
 
-- [ ] remotion-template 建立（React + Remotion）
-  - `ShortDrama.tsx`：接受 RemotionProps，每 Panel 顯示背景圖 + 底部字幕
-  - 淡入淡出轉場，FPS 24，解析度 1024×576
-  - 中文字幕支援（字型路徑 config 可設定）
-  - videoUrl 存在用 `<Video>`，否則用 `<Img>`
+- [ ] `remotion-template/`（React + Remotion）
+  - `ShortDrama.tsx`：RemotionProps → 每 Panel 背景圖 + 底部字幕
+  - 淡入淡出轉場，FPS 24，1024×576
+  - 中文字幕支援（字型路徑 config 可設）
+  - videoUrl 有用 `<Video>`，否則用 `<Img>`
 - [ ] `shand storyboard-to-remotion-props`
 - [ ] `shand remotion-render`（exec npx remotion render）
-- [ ] `shand remotion-preview`（exec npx remotion studio，blocking HITL）
+- [ ] `shand remotion-preview`（exec npx remotion studio，blocking）
 
 **驗收標準**：
 ```bash
-# 用 Phase 3 輸出的 panels，跑完輸出 mp4
 cat panels_with_images.json \
   | shand storyboard-to-remotion-props \
   | shand remotion-render --output ./test.mp4
-ls -lh test.mp4  # 存在且 > 0
+ls -lh test.mp4   # 存在且 > 0，Codex ✅
 ```
 
 ---
 
 ### Phase 5 — Pipeline Orchestrator（第 5 週）
-**目標**：`shand pipeline` 一行指令端到端，HITL 四節點完整
+**目標**：`shand pipeline` 一行端到端，開源準備完成
 
 - [ ] `shand pipeline`（串接所有 skill）
-- [ ] HITL 四節點整合（outline / storyboard / images / final）
+- [ ] HITL 四節點完整整合
 - [ ] `--skip-hitl` 全自動模式
-- [ ] `--resume-from outline|storyboard|images|final`（從任意節點繼續）
-- [ ] 中間產物儲存：`~/.shand/projects/<project-id>/`
-- [ ] End-to-end 測試（含 mock 所有外部 API）
+- [ ] `--resume-from outline|storyboard|images|final`
+- [ ] 中間產物：`~/.shand/projects/<project-id>/`
+- [ ] End-to-end 測試（全 mock 外部 API）
+- [ ] Codex 全專案 review → ✅
+- [ ] LICENSE（MIT）、CONTRIBUTING.md、CI（GitHub Actions）
+- [ ] 開源發布準備
 
 **驗收標準**：
 ```bash
 echo "一個程序員愛上了咖啡師的故事" \
   | shand pipeline --skip-hitl --dry-run --output ./final.mp4
-# exit 0，輸出 project-id 和每個 stage 的 JSON 產物路徑
+# exit 0，輸出 project-id + 各 stage 產物路徑
+# Codex 全專案 ✅
 ```
-
----
-
-## 開發工作流（雙模型）
-
-```
-瑪勒列（Claude / sonnet-4-6）   → 施工隊長
-  寫測試 → 確認 fail → 寫實作 → 確認 pass → review 請求
-
-gpt-5.2（openai-codex）         → 獨立審核員
-  read-only，不被施工方向影響
-  輸出 ✅ Ready 或 ⛔ Blocked
-  Blocked → 修完同 thread 再驗
-```
-
-**每個函數流程**：
-1. 寫 `_test.go`，確認 FAIL
-2. 寫實作，確認 PASS
-3. 請 gpt-5.2 review
-4. ✅ → commit；⛔ → 修 → 回 step 3
 
 ---
 
@@ -252,28 +307,28 @@ gpt-5.2（openai-codex）         → 獨立審核員
 
 ```yaml
 llm:
-  provider: openai          # openai | gemini
-  model: gemini-3-flash     # 或 gpt-4o
+  provider: openai          # openai-compatible
+  model: gemini-3-flash
   api_key: ${GOOGLE_API_KEY}
-  base_url: ""              # 留空用預設；填入任意 OpenAI-compatible URL
+  base_url: ""              # 留空用預設；可填任意 OpenAI-compatible URL
 
 image:
   provider: nano-banana     # nano-banana | openai-compatible
   api_key: ${GOOGLE_API_KEY}
   width: 1024
   height: 576
-  concurrency: 3            # panels-to-images 並發數
+  concurrency: 3
 
 video:
-  enabled: false
-  provider: grok            # grok | kling
+  enabled: false            # 預設關閉
+  provider: grok
   api_key: ${XAI_API_KEY}
   base_url: https://api.x.ai/v1
 
 remotion:
   template_path: ./remotion-template
   composition: ShortDrama
-  font_path: ""             # 中文字型路徑，留空用系統預設
+  font_path: ""             # 中文字型，留空用系統預設
 
 notify:
   discord_webhook: ${DISCORD_WEBHOOK_URL}
@@ -282,7 +337,7 @@ store:
   db_path: ~/.shand/shand.db
 
 server:
-  port: 18080               # Gin HTTP server（checkpoint API）
+  port: 18080               # Gin HTTP，供 agent / Discord bot 呼叫 checkpoint API
 ```
 
 ---
@@ -293,38 +348,26 @@ server:
 |---|---|
 | domain/types | 序列化/反序列化 round-trip |
 | store/ | in-memory mock，不依賴真實 SQLite |
-| llm/ image/ video/ | MockClient，不呼叫任何 API |
+| llm/ image/ video/ | MockClient，禁止呼叫真實 API |
 | pipeline/ | 全 mock，測 orchestration 邏輯 |
-| cmd/ | 黑箱 integration test，`--dry-run` 模式 |
+| cmd/ | 黑箱 integration，`--dry-run` 模式 |
 
-**規則**：
-- Table-driven tests 優先
-- 禁止測試呼叫真實 API
-- 每個 PR 必須 `go test -cover ./... ≥ 80%`
+規則：Table-driven tests 優先。每個 PR：`go test -cover ./... ≥ 80%`。
 
 ---
 
 ## 里程碑
 
-| 時間 | 交付物 |
-|---|---|
-| 第 1 週末 | Phase 1 完成，CLI 骨架可跑，store 完整 |
-| 第 2 週末 | Phase 2 完成，文字 pipeline dry-run 端到端通過 |
-| 第 3 週末 | Phase 3 完成，實際圖像生成可用 |
-| 第 4 週末 | Phase 4 完成，mp4 輸出可用 |
-| 第 5 週末 | Phase 5 完成，`shand pipeline` 端到端，準備開源 |
-
----
-
-## 開源準備（Phase 5 後）
-
-- [ ] LICENSE（MIT）
-- [ ] CONTRIBUTING.md
-- [ ] 補齊 provider 文件（如何接入自己的 Z-Image endpoint）
-- [ ] GitHub Actions CI（`go test -cover ./...`）
-- [ ] 搬 repo 到 `castle-studio-work/stagenthand`
+| 週 | 交付物 | Codex review |
+|---|---|---|
+| 第 1 週末 | Phase 1：CLI 骨架 + store 完整 | ✅ |
+| 第 2 週末 | Phase 2：文字 pipeline dry-run 通過 | ✅ |
+| 第 3 週末 | Phase 3：nano-banana-2 實際圖像生成 | ✅ |
+| 第 4 週末 | Phase 4：mp4 輸出可用 | ✅ |
+| 第 5 週末 | Phase 5：pipeline 端到端 + 開源發布 | ✅ |
 
 ---
 
 *StagentHand — Part of Castle Studio C3A ecosystem.*
 *Binary: `shand` | Module: `github.com/castle-studio-work/stagenthand`*
+*開發架構：Claude（施工）+ Codex（審核）+ opencode（執行環境）*
