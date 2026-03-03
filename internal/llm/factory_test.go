@@ -34,14 +34,14 @@ func TestNewClient(t *testing.T) {
 	t.Run("gemini provider", func(t *testing.T) {
 		client, err := llm.NewClient("gemini", false, cfg)
 		assert.NoError(t, err)
-		_, ok := client.(*llm.GeminiClient)
+		_, ok := client.(*llm.OpenAICompatibleClient)
 		assert.True(t, ok)
 	})
 
 	t.Run("openai provider", func(t *testing.T) {
 		client, err := llm.NewClient("openai", false, cfg)
 		assert.NoError(t, err)
-		_, ok := client.(*llm.GeminiClient) // maps to GeminiClient internally
+		_, ok := client.(*llm.OpenAICompatibleClient) // maps to OpenAICompatible internally
 		assert.True(t, ok)
 	})
 

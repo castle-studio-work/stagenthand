@@ -35,7 +35,7 @@ func NewClient(provider string, dryRun bool, cfg *config.Config) (Client, error)
 				model = "gpt-4o"
 			}
 		}
-		return NewGeminiClient(baseURL, apiKey, model), nil
+		return NewOpenAICompatibleClient(baseURL, apiKey, model), nil
 	default:
 		return nil, fmt.Errorf("provider %s not implemented yet. Use --dry-run for testing", provider)
 	}

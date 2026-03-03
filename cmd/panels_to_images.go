@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
-	"sync"
 
 	"github.com/baochen10luo/stagenthand/internal/domain"
 	"github.com/baochen10luo/stagenthand/internal/image"
@@ -18,11 +16,6 @@ var (
 	panelsOutputDir string
 	workers         int
 )
-
-type GeneratorRequest struct {
-	Index int
-	Panel domain.Panel
-}
 
 func runPanelsToImages(cmd *cobra.Command, args []string) error {
 	inputData, err := io.ReadAll(os.Stdin)
@@ -40,67 +33,21 @@ func runPanelsToImages(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("parsing panels payload: %w", err)
 	}
 
-	if err := os.MkdirAll(panelsOutputDir, 0755); err != nil {
-		return fmt.Errorf("creating panels output dir: %w", err)
-	}
-
 	provider := "mock"
 	if cfg != nil && cfg.Image.Provider != "" {
 		provider = cfg.Image.Provider
 	}
 
-	ctx := context.Background()
-
-	var wg sync.WaitGroup
-	reqChan := make(chan GeneratorRequest, len(payload.Panels))
-	errChan := make(chan error, len(payload.Panels))
-
-	// Worker Pool
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			client, err := image.NewClient(provider, dryRun, cfg)
-			if err != nil {
-				errChan <- fmt.Errorf("client factory error: %w", err)
-				return
-			}
-
-			for req := range reqChan {
-				imgBytes, err := client.GenerateImage(ctx, req.Panel.Description, req.Panel.CharacterRefs)
-				if err != nil {
-					errChan <- fmt.Errorf("failed panel scene_%d_panel_%d: %w", req.Panel.SceneNumber, req.Panel.PanelNumber, err)
-					req.Panel.ImageURL = "error.png"
-				} else if len(imgBytes) > 0 {
-					fileName := fmt.Sprintf("scene_%d_panel_%d.png", req.Panel.SceneNumber, req.Panel.PanelNumber)
-					filePath := filepath.Join(panelsOutputDir, fileName)
-					if err := os.WriteFile(filePath, imgBytes, 0644); err != nil {
-						errChan <- fmt.Errorf("write error for panel %d: %w", req.Panel.PanelNumber, err)
-						req.Panel.ImageURL = "error.png"
-					} else {
-						req.Panel.ImageURL = filePath
-					}
-				} else {
-					req.Panel.ImageURL = "error.png"
-				}
-
-				payload.Panels[req.Index] = req.Panel
-			}
-		}()
+	client, err := image.NewClient(provider, dryRun, cfg)
+	if err != nil {
+		return fmt.Errorf("image client factory: %w", err)
 	}
 
-	for i, p := range payload.Panels {
-		reqChan <- GeneratorRequest{Index: i, Panel: p}
-	}
-	close(reqChan)
+	outPanels, errs := image.GenerateBatch(context.Background(), client, payload.Panels, panelsOutputDir, workers)
+	payload.Panels = outPanels
 
-	wg.Wait()
-	close(errChan)
-
-	var errs []error
-	for e := range errChan {
-		errs = append(errs, e)
-		if verbose {
+	if verbose {
+		for _, e := range errs {
 			fmt.Fprintf(os.Stderr, "Worker error: %v\n", e)
 		}
 	}
