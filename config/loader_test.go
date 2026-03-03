@@ -20,8 +20,8 @@ func TestLoad_Defaults(t *testing.T) {
 	if cfg.Image.Width != 1024 {
 		t.Errorf("Image.Width = %d, want 1024", cfg.Image.Width)
 	}
-	if cfg.Server.Port != 18080 {
-		t.Errorf("Server.Port = %d, want 18080", cfg.Server.Port)
+	if cfg.Server.Port != 28080 {
+		t.Errorf("Server.Port = %d, want 28080", cfg.Server.Port)
 	}
 	if cfg.Store.DBPath == "" {
 		t.Error("Store.DBPath must not be empty")

@@ -1,5 +1,5 @@
 // Package server provides the Gin HTTP API for HITL checkpoint management.
-// Listens on :18080 (configurable). Compatible with CLI and agent callers.
+// Listens on :28080 (configurable). Compatible with CLI and agent callers.
 package server
 
 import (
