@@ -3,6 +3,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -86,11 +88,14 @@ func Load(cfgFile string) (*Config, error) {
 	v.AutomaticEnv()
 
 	// Config file
-	if cfgFile != "" {
-		v.SetConfigFile(cfgFile)
-		if err := v.ReadInConfig(); err != nil {
-			return nil, err
-		}
+	if cfgFile == "" {
+		home, _ := os.UserHomeDir()
+		cfgFile = filepath.Join(home, ".shand", "config.yaml")
+	}
+	
+	v.SetConfigFile(cfgFile)
+	if err := v.ReadInConfig(); err != nil {
+		// Ignore if the default config file does not exist.
 	}
 
 	var cfg Config

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -66,9 +67,6 @@ func (c *OpenAICompatibleClient) GenerateTransformation(ctx context.Context, sys
 
 	reqBody := ChatRequest{
 		Model: c.model,
-		ResponseFormat: &struct {
-			Type string `json:"type"`
-		}{Type: "json_object"},
 		Messages: []Message{
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: string(inputData)},
@@ -102,5 +100,19 @@ func (c *OpenAICompatibleClient) GenerateTransformation(ctx context.Context, sys
 		return nil, errors.New("API returned empty choices or content")
 	}
 
-	return []byte(resBody.Choices[0].Message.Content), nil
+	content := strings.TrimSpace(resBody.Choices[0].Message.Content)
+
+	if strings.HasPrefix(content, "```json") {
+		content = strings.TrimPrefix(content, "```json")
+	} else if strings.HasPrefix(content, "```") {
+		content = strings.TrimPrefix(content, "```")
+	}
+	
+	if strings.HasSuffix(content, "```") {
+		content = strings.TrimSuffix(content, "```")
+	}
+	
+	content = strings.TrimSpace(content)
+
+	return []byte(content), nil
 }
