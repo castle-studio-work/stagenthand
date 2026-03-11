@@ -12,9 +12,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 )
 
+type bedrockInvoker interface {
+	InvokeModel(ctx context.Context, params *bedrockruntime.InvokeModelInput, optFns ...func(*bedrockruntime.Options)) (*bedrockruntime.InvokeModelOutput, error)
+}
+
 // NovaCanvasClient implements the image.Client interface using AWS Bedrock Nova Canvas.
 type NovaCanvasClient struct {
-	client *bedrockruntime.Client
+	client bedrockInvoker
 	model  string
 	width  int
 	height int
@@ -73,7 +77,7 @@ func (c *NovaCanvasClient) GenerateImage(ctx context.Context, prompt string, cha
 		ImageGenerationConfig ImageGenerationConfig `json:"imageGenerationConfig"`
 	}
 
-	// For now, shand simple implementation doesn't pass image conditioning 
+	// For now, shand simple implementation doesn't pass image conditioning
 	// until we define a clearer schema for multi-image prompts in shand.
 	// We use the provided width/height from config.
 	input := NovaCanvasRequest{

@@ -19,7 +19,9 @@ func NewMockJobRepository() *MockJobRepository {
 }
 
 func (m *MockJobRepository) Create(job *domain.Job) error {
-	if m.Fail { return ErrInternal }
+	if m.Fail {
+		return ErrInternal
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.jobs[job.ID] = job
@@ -27,7 +29,9 @@ func (m *MockJobRepository) Create(job *domain.Job) error {
 }
 
 func (m *MockJobRepository) GetByID(id string) (*domain.Job, error) {
-	if m.Fail { return nil, ErrInternal }
+	if m.Fail {
+		return nil, ErrInternal
+	}
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	j, ok := m.jobs[id]
@@ -38,7 +42,9 @@ func (m *MockJobRepository) GetByID(id string) (*domain.Job, error) {
 }
 
 func (m *MockJobRepository) UpdateStatus(id string, status domain.JobStatus, errMsg string) error {
-	if m.Fail { return ErrInternal }
+	if m.Fail {
+		return ErrInternal
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	j, ok := m.jobs[id]
@@ -62,7 +68,9 @@ func NewMockCheckpointRepository() *MockCheckpointRepository {
 }
 
 func (m *MockCheckpointRepository) Create(cp *domain.Checkpoint) error {
-	if m.Fail { return ErrInternal }
+	if m.Fail {
+		return ErrInternal
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.cps[cp.ID] = cp
@@ -70,7 +78,9 @@ func (m *MockCheckpointRepository) Create(cp *domain.Checkpoint) error {
 }
 
 func (m *MockCheckpointRepository) GetByID(id string) (*domain.Checkpoint, error) {
-	if m.Fail { return nil, ErrInternal }
+	if m.Fail {
+		return nil, ErrInternal
+	}
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	cp, ok := m.cps[id]
@@ -81,7 +91,9 @@ func (m *MockCheckpointRepository) GetByID(id string) (*domain.Checkpoint, error
 }
 
 func (m *MockCheckpointRepository) ListByJobID(jobID string) ([]*domain.Checkpoint, error) {
-	if m.Fail { return nil, ErrInternal }
+	if m.Fail {
+		return nil, ErrInternal
+	}
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	var result []*domain.Checkpoint
@@ -94,7 +106,9 @@ func (m *MockCheckpointRepository) ListByJobID(jobID string) ([]*domain.Checkpoi
 }
 
 func (m *MockCheckpointRepository) UpdateStatus(id string, status domain.CheckpointStatus, notes string) error {
-	if m.Fail { return ErrInternal }
+	if m.Fail {
+		return ErrInternal
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	cp, ok := m.cps[id]

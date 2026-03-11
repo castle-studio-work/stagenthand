@@ -48,11 +48,11 @@ func (c *NanoBananaClient) GenerateImage(ctx context.Context, prompt string, cha
 	// This payload assumes the NanoBanana endpoint accepts OpenAI-like /images/generations format.
 	// If it needs specific custom fields for Reference Images, they are passed down here.
 	type ImageRequest struct {
-		Model          string   `json:"model"`
-		Prompt         string   `json:"prompt"`
-		ResponseFormat string   `json:"response_format"`
+		Model          string `json:"model"`
+		Prompt         string `json:"prompt"`
+		ResponseFormat string `json:"response_format"`
 		// NanoBanana custom extension for consistent characters
-		CharacterRefs  []string `json:"character_refs,omitempty"` 
+		CharacterRefs []string `json:"character_refs,omitempty"`
 	}
 
 	type ImageResponse struct {

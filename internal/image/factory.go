@@ -12,7 +12,7 @@ func NewClient(provider string, dryRun bool, cfg *config.Config) (Client, error)
 	}
 	switch provider {
 	case "nanobanana":
-		// Defaults to Zeabur proxy per memory rules. 
+		// Defaults to Zeabur proxy per memory rules.
 		return NewNanoBananaClient("", cfg.Image.APIKey, "nano-banana-2"), nil
 	case "nova":
 		return NewNovaCanvasClient(
@@ -24,7 +24,7 @@ func NewClient(provider string, dryRun bool, cfg *config.Config) (Client, error)
 			cfg.Image.Height,
 			cfg.Image.CharacterRefsDir,
 		)
-	default:	
+	default:
 		return nil, fmt.Errorf("provider %s not implemented yet. Use --dry-run for testing", provider)
 	}
 }

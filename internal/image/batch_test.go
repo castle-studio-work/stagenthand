@@ -60,7 +60,7 @@ func TestGenerateBatch(t *testing.T) {
 		out, errs := image.GenerateBatch(context.Background(), client, panels, tmpDir, 2)
 		assert.Len(t, errs, 1)
 		assert.ErrorContains(t, errs[0], "api limit")
-		
+
 		var url1, url2 string
 		for _, p := range out {
 			if p.Description == "fail" {
@@ -77,15 +77,15 @@ func TestGenerateBatch(t *testing.T) {
 	t.Run("invalid output dir", func(t *testing.T) {
 		client := &image.MockClient{}
 		panels := []domain.Panel{{PanelNumber: 1}}
-		
+
 		// Unwritable path to trigger os.MkdirAll error
 		os.MkdirAll(filepath.Join(tmpDir, "restricted"), 0500) // read only
 
-		// If os.MkdirAll doesn't fail based on permissions (like if running as root in tests), 
+		// If os.MkdirAll doesn't fail based on permissions (like if running as root in tests),
 		// we can pass a file as a directory to force failure.
 		fileAsDir := filepath.Join(tmpDir, "file_as_dir")
 		os.WriteFile(fileAsDir, []byte("dummy"), 0644)
-		
+
 		_, errs := image.GenerateBatch(context.Background(), client, panels, fileAsDir, 1)
 		assert.Len(t, errs, 1)
 		assert.ErrorContains(t, errs[0], "creating output dir")

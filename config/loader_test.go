@@ -10,7 +10,7 @@ import (
 
 func TestLoad_Defaults(t *testing.T) {
 	// Point at a non-existent config so only defaults apply.
-	cfg, err := config.Load("")
+	cfg, err := config.Load("testdata/nonexistent.yaml")
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}

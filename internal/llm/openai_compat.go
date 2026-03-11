@@ -10,7 +10,7 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-// OpenAICompatibleClient connects (via a proxy or standard endpoint) 
+// OpenAICompatibleClient connects (via a proxy or standard endpoint)
 // to generate text output for our pipeline steps.
 type OpenAICompatibleClient struct {
 	client *resty.Client
@@ -49,7 +49,7 @@ func (c *OpenAICompatibleClient) GenerateTransformation(ctx context.Context, sys
 	}
 
 	type ChatRequest struct {
-		Model          string    `json:"model"`
+		Model          string `json:"model"`
 		ResponseFormat *struct {
 			Type string `json:"type"`
 		} `json:"response_format,omitempty"`
@@ -107,11 +107,11 @@ func (c *OpenAICompatibleClient) GenerateTransformation(ctx context.Context, sys
 	} else if strings.HasPrefix(content, "```") {
 		content = strings.TrimPrefix(content, "```")
 	}
-	
+
 	if strings.HasSuffix(content, "```") {
 		content = strings.TrimSuffix(content, "```")
 	}
-	
+
 	content = strings.TrimSpace(content)
 
 	return []byte(content), nil

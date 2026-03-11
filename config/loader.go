@@ -12,13 +12,13 @@ import (
 
 // Config is the top-level configuration structure.
 type Config struct {
-	LLM     LLMConfig     `mapstructure:"llm"`
-	Image   ImageConfig   `mapstructure:"image"`
-	Video   VideoConfig   `mapstructure:"video"`
+	LLM      LLMConfig      `mapstructure:"llm"`
+	Image    ImageConfig    `mapstructure:"image"`
+	Video    VideoConfig    `mapstructure:"video"`
 	Remotion RemotionConfig `mapstructure:"remotion"`
-	Notify  NotifyConfig  `mapstructure:"notify"`
-	Store   StoreConfig   `mapstructure:"store"`
-	Server  ServerConfig  `mapstructure:"server"`
+	Notify   NotifyConfig   `mapstructure:"notify"`
+	Store    StoreConfig    `mapstructure:"store"`
+	Server   ServerConfig   `mapstructure:"server"`
 }
 
 // LLMConfig holds language-model provider settings.
@@ -33,7 +33,7 @@ type LLMConfig struct {
 type ImageConfig struct {
 	Provider         string `mapstructure:"provider"`
 	Model            string `mapstructure:"model"`
-	APIKey           string `mapstructure:"api_key"`    // Alias for AccessKeyID in AWS
+	APIKey           string `mapstructure:"api_key"` // Alias for AccessKeyID in AWS
 	SecretKey        string `mapstructure:"secret_key"`
 	Region           string `mapstructure:"region"`
 	Width            int    `mapstructure:"width"`
@@ -95,7 +95,7 @@ func Load(cfgFile string) (*Config, error) {
 		home, _ := os.UserHomeDir()
 		cfgFile = filepath.Join(home, ".shand", "config.yaml")
 	}
-	
+
 	v.SetConfigFile(cfgFile)
 	if err := v.ReadInConfig(); err != nil {
 		// Ignore if the default config file does not exist.

@@ -68,8 +68,8 @@ type Episode struct {
 	Number      int    `json:"number"`
 	Title       string `json:"title"`
 	Synopsis    string `json:"synopsis"`
-	Hook        string `json:"hook"`         // opening hook
-	Cliffhanger string `json:"cliffhanger"`  // ending cliffhanger
+	Hook        string `json:"hook"`        // opening hook
+	Cliffhanger string `json:"cliffhanger"` // ending cliffhanger
 }
 
 // Storyboard is the detailed scene-by-scene plan for a single episode.
@@ -91,11 +91,11 @@ type Scene struct {
 type Panel struct {
 	SceneNumber   int      `json:"scene_number"`
 	PanelNumber   int      `json:"panel_number"`
-	Description   string   `json:"description"` // image generation prompt
-	Dialogue      string   `json:"dialogue"`    // subtitle text
-	CharacterRefs []string `json:"character_refs"` // paths to character reference images
+	Description   string   `json:"description"`         // image generation prompt
+	Dialogue      string   `json:"dialogue"`            // subtitle text
+	CharacterRefs []string `json:"character_refs"`      // paths to character reference images
 	ImageURL      string   `json:"image_url,omitempty"` // populated after generation
-	DurationSec   float64  `json:"duration_sec"` // display duration in Remotion
+	DurationSec   float64  `json:"duration_sec"`        // display duration in Remotion
 }
 
 // HasCharacterRefs returns true if any character reference images are specified.
@@ -130,7 +130,7 @@ type RemotionProps struct {
 	ProjectID string  `json:"project_id"`
 	Title     string  `json:"title"`
 	Panels    []Panel `json:"panels"`
-	FPS       int     `json:"fps"`        // default 24
-	Width     int     `json:"width"`      // default 1024
-	Height    int     `json:"height"`     // default 576
+	FPS       int     `json:"fps"`    // default 24
+	Width     int     `json:"width"`  // default 1024
+	Height    int     `json:"height"` // default 576
 }

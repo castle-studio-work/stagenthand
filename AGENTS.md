@@ -181,10 +181,10 @@ go test -cover ./... && echo "✅ Phase OK"
 
 ## PHASE STATUS
 
-- [ ] Phase 1：cobra骨架 + config(viper) + domain/types + SQLite(gorm) + status/checkpoint
-- [ ] Phase 2：LLM interface + story-to-outline/outline-to-storyboard/storyboard-to-panels + dry-run
-- [ ] Phase 3：image interface + panel-to-image/panels-to-images + Discord notify
+- [x] Phase 1：cobra骨架 + config(viper) + domain/types + SQLite(gorm) + status/checkpoint
+- [x] Phase 2：LLM interface + story-to-outline/outline-to-storyboard/storyboard-to-panels + dry-run
+- [x] Phase 3：image interface + panel-to-image/panels-to-images + Discord notify
 - [ ] Phase 4：remotion-template + storyboard-to-remotion-props + render/preview
 - [ ] Phase 5：pipeline orchestrator + HITL四節點 + e2e test
 
-**Current：Phase 1**
+**Current：Phase 4**
