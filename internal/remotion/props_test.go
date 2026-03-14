@@ -88,7 +88,7 @@ func TestPanelsToRemotionProps_DirectArray(t *testing.T) {
 		{SceneNumber: 1, PanelNumber: 2, Description: "p2", Dialogue: "World", ImageURL: "https://example.com/b.png", DurationSec: 4.0},
 	}
 
-	props := remotion.PanelsToProps("proj-direct", panels, 1920, 1080, 30)
+	props := remotion.PanelsToProps("proj-direct", panels, 1920, 1080, 30, "")
 
 	if len(props.Panels) != 2 {
 		t.Fatalf("want 2 panels, got %d", len(props.Panels))

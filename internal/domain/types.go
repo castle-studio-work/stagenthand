@@ -76,6 +76,7 @@ type Episode struct {
 type Storyboard struct {
 	ProjectID string    `json:"project_id"`
 	Episode   int       `json:"episode"`
+	BGMURL    string    `json:"bgm_url,omitempty"` // URL to background music
 	Scenes    []Scene   `json:"scenes"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -130,6 +131,7 @@ type Checkpoint struct {
 type RemotionProps struct {
 	ProjectID string  `json:"project_id"`
 	Title     string  `json:"title"`
+	BGMURL    string  `json:"bgm_url,omitempty"`
 	Panels    []Panel `json:"panels"`
 	FPS       int     `json:"fps"`    // default 24
 	Width     int     `json:"width"`  // default 1024

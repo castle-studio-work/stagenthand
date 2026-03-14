@@ -115,6 +115,48 @@ func (b *AudioClientBatcher) BatchGenerateAudio(ctx context.Context, panels []do
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MusicClientBatcher adapts an audio.MusicClient into a MusicBatcher interface.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type MusicClientBatcher struct {
+	client  audio.MusicClient
+	rootDir string
+}
+
+func NewMusicClientBatcher(c audio.MusicClient, rootDir string) *MusicClientBatcher {
+	return &MusicClientBatcher{client: c, rootDir: rootDir}
+}
+
+func (b *MusicClientBatcher) GenerateProjectBGM(ctx context.Context, projectID string, baseTag string, targetDir string) (string, error) {
+	fullDir := filepath.Join(b.rootDir, targetDir)
+	if err := os.MkdirAll(fullDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create music dir %s: %w", fullDir, err)
+	}
+
+	filename := "bgm.mp3"
+	absPath := filepath.Join(fullDir, filename)
+
+	if info, err := os.Stat(absPath); err == nil && info.Size() > 0 {
+		return absPath, nil
+	}
+
+	if baseTag == "" {
+		baseTag = "cinematic"
+	}
+
+	audioBytes, err := b.client.SearchAndDownload(ctx, baseTag)
+	if err != nil {
+		return "", fmt.Errorf("bgm gen failed: %w", err)
+	}
+
+	if err := os.WriteFile(absPath, audioBytes, 0644); err != nil {
+		return "", fmt.Errorf("failed to save bgm %s: %w", absPath, err)
+	}
+
+	return absPath, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CheckpointGateAdapter adapts store.CheckpointRepository into CheckpointGate.
 // It creates a Checkpoint record and polls until it is approved or rejected.
 // ─────────────────────────────────────────────────────────────────────────────

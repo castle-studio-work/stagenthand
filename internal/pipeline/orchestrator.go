@@ -18,6 +18,10 @@ type AudioBatcher interface {
 	BatchGenerateAudio(ctx context.Context, panels []domain.Panel, targetDir string) ([]domain.Panel, error)
 }
 
+// MusicBatcher generates a single background music track for a project.
+type MusicBatcher interface {
+	GenerateProjectBGM(ctx context.Context, projectID string, baseTag string, targetDir string) (string, error)
+}
 
 // CheckpointGate represents a HITL pause point that must be approved to continue.
 type CheckpointGate interface {
@@ -30,6 +34,7 @@ type OrchestratorDeps struct {
 	LLM         Transformer
 	Images      ImageBatcher
 	Audio       AudioBatcher
+	Music       MusicBatcher
 	Checkpoints CheckpointGate
 	DryRun      bool
 	SkipHITL    bool
@@ -62,7 +67,7 @@ func (o *Orchestrator) Run(ctx context.Context, inputData []byte) (*PipelineResu
 	// 1. Detection: Is this already a flat list of panels (RemotionProps)?
 	var props domain.RemotionProps
 	if jsonUnmarshal(inputData, &props) == nil && len(props.Panels) > 0 {
-		return o.executeFromPanels(ctx, props.ProjectID, props.Panels)
+		return o.executeFromPanels(ctx, props.ProjectID, props.Panels, props.BGMURL)
 	}
 
 	// 2. Normal flow: Resolve to a Storyboard
@@ -77,11 +82,11 @@ func (o *Orchestrator) Run(ctx context.Context, inputData []byte) (*PipelineResu
 		return nil, fmt.Errorf("panels stage failed: %w", err)
 	}
 
-	return o.executeFromPanels(ctx, storyboard.ProjectID, panels)
+	return o.executeFromPanels(ctx, storyboard.ProjectID, panels, storyboard.BGMURL)
 }
 
-// executeFromPanels runs the asset generation stages (Images, Audio) from a flat panel list.
-func (o *Orchestrator) executeFromPanels(ctx context.Context, projectID string, panels []domain.Panel) (*PipelineResult, error) {
+// executeFromPanels runs the asset generation stages (Images, Audio, Music) from a flat panel list.
+func (o *Orchestrator) executeFromPanels(ctx context.Context, projectID string, panels []domain.Panel, bgmURL string) (*PipelineResult, error) {
 	var err error
 
 	// 3. Generate images for panels
@@ -108,8 +113,20 @@ func (o *Orchestrator) executeFromPanels(ctx context.Context, projectID string, 
 		}
 	}
 
+	// 5. Generate BGM
+	if !o.deps.DryRun && o.deps.Music != nil {
+		musicDir := fmt.Sprintf("projects/%s/audio", projectID)
+		// For MVP, using a default cinematic tag. Later can extract from storyboard.
+		bgm, err := o.deps.Music.GenerateProjectBGM(ctx, projectID, "cinematic", musicDir)
+		if err != nil {
+			fmt.Printf("⚠️  [Warning] BGM generation skipped: %v\n", err)
+		} else {
+			bgmURL = bgm
+		}
+	}
+
 	return &PipelineResult{
-		Storyboard: domain.Storyboard{ProjectID: projectID}, // Minimal backfill
+		Storyboard: domain.Storyboard{ProjectID: projectID, BGMURL: bgmURL}, // Minimal backfill
 		Panels:     panels,
 	}, nil
 }

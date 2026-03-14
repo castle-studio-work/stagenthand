@@ -75,11 +75,15 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	// Build audio client (Polly)
 	audioClient := audio.NewPollyCLIClient(cfg.LLM.AWSRegion, cfg.LLM.AWSAccessKeyID, cfg.LLM.AWSSecretAccessKey)
 
+	// Build music client (Jamendo)
+	musicClient := audio.NewJamendoClient(cfg.Audio.JamendoClientID)
+
 	// Wire orchestrator
 	orch := pipeline.NewOrchestrator(pipeline.OrchestratorDeps{
 		LLM:         llmClient,
 		Images:      pipeline.NewImageClientBatcher(imgClient, shandHome),
 		Audio:       pipeline.NewAudioClientBatcher(audioClient, shandHome),
+		Music:       pipeline.NewMusicClientBatcher(musicClient, shandHome),
 		Checkpoints: ckptGate,
 		DryRun:      dryRun,
 		SkipHITL:    pipelineSkipHITL,
@@ -91,7 +95,7 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	}
 
 	// Write remotion props
-	props := remotion.PanelsToProps(result.Storyboard.ProjectID, result.Panels, cfg.Image.Width, cfg.Image.Height, 24)
+	props := remotion.PanelsToProps(result.Storyboard.ProjectID, result.Panels, cfg.Image.Width, cfg.Image.Height, 24, result.Storyboard.BGMURL)
 	if err := writeResults(result, props); err != nil {
 		return stageError("pipeline", "output_error", err.Error())
 	}

@@ -16,6 +16,7 @@ export type Panel = {
 export type RemotionProps = {
   project_id: string;
   title: string;
+  bgm_url?: string;
   panels: Panel[];
   fps: number;    // default 24
   width: number;  // default 1024

@@ -1,11 +1,11 @@
-import { AbsoluteFill, Series } from "remotion";
+import { AbsoluteFill, Series, Audio, staticFile } from "remotion";
 import type { RemotionProps } from "../types";
 import { PanelSlide } from "./PanelSlide";
 
 // ShortDrama is the main composition component.
 // It uses <Series> to play panels one after another without manual offset calculation.
 // Duration is driven dynamically by calculateMetadata in Root.tsx.
-export const ShortDrama: React.FC<RemotionProps> = ({ panels, fps }) => {
+export const ShortDrama: React.FC<RemotionProps> = ({ panels, fps, bgm_url }) => {
   if (!panels || panels.length === 0) {
     return (
       <AbsoluteFill
@@ -25,6 +25,7 @@ export const ShortDrama: React.FC<RemotionProps> = ({ panels, fps }) => {
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
+      {bgm_url && <Audio src={staticFile(bgm_url)} loop volume={0.6} />}
       <Series>
         {panels.map((panel, i) => {
           const durationInFrames = Math.max(

@@ -14,6 +14,7 @@ import (
 type Config struct {
 	LLM      LLMConfig      `mapstructure:"llm"`
 	Image    ImageConfig    `mapstructure:"image"`
+	Audio    AudioConfig    `mapstructure:"audio"`
 	Video    VideoConfig    `mapstructure:"video"`
 	Remotion RemotionConfig `mapstructure:"remotion"`
 	Notify   NotifyConfig   `mapstructure:"notify"`
@@ -43,6 +44,13 @@ type ImageConfig struct {
 	Width            int    `mapstructure:"width"`
 	Height           int    `mapstructure:"height"`
 	CharacterRefsDir string `mapstructure:"character_refs_dir"`
+}
+
+// AudioConfig holds audio-generation/BGM provider settings.
+type AudioConfig struct {
+	VoiceProvider   string `mapstructure:"voice_provider"`
+	MusicProvider   string `mapstructure:"music_provider"`
+	JamendoClientID string `mapstructure:"jamendo_client_id"`
 }
 
 // VideoConfig holds video-generation provider settings.

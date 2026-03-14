@@ -18,6 +18,7 @@ func StoryboardToProps(sb domain.Storyboard, width, height, fps int) domain.Remo
 	return domain.RemotionProps{
 		ProjectID: sb.ProjectID,
 		Title:     "Generated Drama",
+		BGMURL:    normalizePath(sb.BGMURL, sb.ProjectID),
 		Panels:    panels,
 		FPS:       fps,
 		Width:     width,
@@ -27,7 +28,7 @@ func StoryboardToProps(sb domain.Storyboard, width, height, fps int) domain.Remo
 
 // PanelsToProps converts a flat []Panel directly into RemotionProps.
 // Useful when the pipeline has already extracted panels from the storyboard.
-func PanelsToProps(projectID string, panels []domain.Panel, width, height, fps int) domain.RemotionProps {
+func PanelsToProps(projectID string, panels []domain.Panel, width, height, fps int, bgmURL string) domain.RemotionProps {
 	normalized := make([]domain.Panel, len(panels))
 	for i, p := range panels {
 		p = withDefaultDuration(p)
@@ -38,6 +39,7 @@ func PanelsToProps(projectID string, panels []domain.Panel, width, height, fps i
 	return domain.RemotionProps{
 		ProjectID: projectID,
 		Title:     "Generated Drama",
+		BGMURL:    normalizePath(bgmURL, projectID),
 		Panels:    normalized,
 		FPS:       fps,
 		Width:     width,
