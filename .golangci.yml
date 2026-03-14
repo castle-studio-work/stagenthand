@@ -1,0 +1,29 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck      # 未處理的 error 是 bug
+    - govet         # go vet 的超集
+    - staticcheck   # 靜態分析，找出真正的問題
+    - unused        # 宣告但未使用的符號
+    - ineffassign   # 無效的賦值（立即被覆蓋）
+    - gofmt         # 格式化強制
+
+linters-settings:
+  errcheck:
+    check-type-assertions: false  # x.(T) 不強制要求 ok 模式
+  staticcheck:
+    checks:
+      - "all"
+      - "-SA1019"  # 允許 deprecated 使用（不打斷現有代碼）
+
+issues:
+  max-issues-per-linter: 20
+  max-same-issues: 5
+  exclude-rules:
+    # 測試檔案允許寬鬆標準
+    - path: "_test\\.go"
+      linters:
+        - errcheck
+        - unused

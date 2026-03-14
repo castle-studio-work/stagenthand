@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  GO_VERSION: "1.25"
+  NODE_VERSION: "20"
+  COVERAGE_THRESHOLD: "80"
+
+jobs:
+  # ─────────────────────────────────────────────────────
+  # Job 1: Go — test, build, lint
+  # ─────────────────────────────────────────────────────
+  go:
+    name: Go Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test (with coverage)
+        run: |
+          go test -coverprofile=coverage.out -covermode=atomic ./...
+          total=$(go tool cover -func=coverage.out | grep "total:" | awk '{print $3}' | tr -d '%')
+          echo "Coverage: ${total}%"
+          echo "Threshold: ${COVERAGE_THRESHOLD}%"
+          awk -v t="${COVERAGE_THRESHOLD}" -v c="${total}" \
+            'BEGIN { if (c+0 < t+0) { print "❌ Coverage below threshold"; exit 1 } else { print "✅ Coverage OK" } }'
+
+      - name: go build
+        run: GOTMPDIR=/tmp/gobuild go build -o /tmp/shand .
+
+      - name: smoke test — storyboard-to-remotion-props
+        run: |
+          cat test_storyboard.json \
+            | /tmp/shand storyboard-to-remotion-props \
+            | /tmp/shand remotion-render --output /tmp/test.mp4 --dry-run
+
+  # ─────────────────────────────────────────────────────
+  # Job 2: golangci-lint — catch code smell early
+  # ─────────────────────────────────────────────────────
+  lint:
+    name: Go Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=3m
+
+  # ─────────────────────────────────────────────────────
+  # Job 3: Remotion template — TypeScript type check + install
+  # ─────────────────────────────────────────────────────
+  remotion:
+    name: Remotion TypeScript Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: remotion-template/package-lock.json
+
+      - name: npm install
+        run: npm ci
+        working-directory: remotion-template
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+        working-directory: remotion-template
