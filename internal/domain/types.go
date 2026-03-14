@@ -90,14 +90,31 @@ type Scene struct {
 
 // Panel represents a single image frame with associated metadata.
 type Panel struct {
-	SceneNumber   int      `json:"scene_number"`
-	PanelNumber   int      `json:"panel_number"`
-	Description   string   `json:"description"`         // image generation prompt
-	Dialogue      string   `json:"dialogue"`            // subtitle text
-	CharacterRefs []string `json:"character_refs"`      // paths to character reference images
-	ImageURL      string   `json:"image_url,omitempty"` // populated after generation
-	AudioURL      string   `json:"audio_url,omitempty"` // populated after TTS generation
-	DurationSec   float64  `json:"duration_sec"`        // display duration in Remotion
+	SceneNumber   int              `json:"scene_number"`
+	PanelNumber   int              `json:"panel_number"`
+	Description   string           `json:"description"`         // image generation prompt
+	Dialogue      string           `json:"dialogue"`            // subtitle text
+	CharacterRefs []string         `json:"character_refs"`      // paths to character reference images
+	ImageURL      string           `json:"image_url,omitempty"` // populated after generation
+	AudioURL      string           `json:"audio_url,omitempty"` // populated after TTS generation
+	DurationSec   float64          `json:"duration_sec"`        // display duration in Remotion
+	Directive     *PanelDirective  `json:"directive,omitempty"` // per-panel rendering directives
+}
+
+// PanelDirective holds per-panel rendering instructions for the Remotion template.
+// All fields are optional — missing fields use Remotion's built-in defaults.
+type PanelDirective struct {
+	// Camera motion
+	MotionEffect       string  `json:"motion_effect,omitempty"`         // ken_burns_in|ken_burns_out|pan_left|pan_right|static
+	MotionIntensity    float64 `json:"motion_intensity,omitempty"`      // 0.0–0.2, default 0.05
+	// Transitions
+	TransitionIn       string  `json:"transition_in,omitempty"`         // fade|cut|dissolve|wipe_left
+	TransitionOut      string  `json:"transition_out,omitempty"`
+	TransitionDurationMs int   `json:"transition_duration_ms,omitempty"` // default 300
+	// Subtitles
+	SubtitleEffect     string  `json:"subtitle_effect,omitempty"`       // fade|typewriter|none
+	SubtitleFontSize   int     `json:"subtitle_font_size,omitempty"`    // default 36
+	SubtitlePosition   string  `json:"subtitle_position,omitempty"`     // bottom|top|center
 }
 
 // HasCharacterRefs returns true if any character reference images are specified.
@@ -127,13 +144,27 @@ type Checkpoint struct {
 	UpdatedAt time.Time        `json:"updated_at"`
 }
 
+// Directives holds global rendering instructions for the entire video.
+// All fields are optional — missing fields use Remotion's built-in defaults.
+type Directives struct {
+	// Audio mastering
+	BGMFadeInSec   float64 `json:"bgm_fade_in_sec,omitempty"`   // music fade-in duration
+	BGMFadeOutSec  float64 `json:"bgm_fade_out_sec,omitempty"`  // music fade-out duration
+	BGMVolume      float64 `json:"bgm_volume,omitempty"`        // base volume 0.0–1.0
+	DuckingDepth   float64 `json:"ducking_depth,omitempty"`     // BGM volume during voiceover
+	DuckingFadeSec float64 `json:"ducking_fade_sec,omitempty"`  // ducking ramp duration
+	// Visual
+	ColorFilter    string  `json:"color_filter,omitempty"`      // none|cinematic|vintage|cyberpunk
+}
+
 // RemotionProps is the JSON payload passed to the Remotion template.
 type RemotionProps struct {
-	ProjectID string  `json:"project_id"`
-	Title     string  `json:"title"`
-	BGMURL    string  `json:"bgm_url,omitempty"`
-	Panels    []Panel `json:"panels"`
-	FPS       int     `json:"fps"`    // default 24
-	Width     int     `json:"width"`  // default 1024
-	Height    int     `json:"height"` // default 576
+	ProjectID  string      `json:"project_id"`
+	Title      string      `json:"title"`
+	BGMURL     string      `json:"bgm_url,omitempty"`
+	Directives *Directives `json:"directives,omitempty"`
+	Panels     []Panel     `json:"panels"`
+	FPS        int         `json:"fps"`    // default 24
+	Width      int         `json:"width"`  // default 1024
+	Height     int         `json:"height"` // default 576
 }
