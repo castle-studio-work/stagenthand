@@ -27,6 +27,10 @@ type LLMConfig struct {
 	Model    string `mapstructure:"model"`
 	APIKey   string `mapstructure:"api_key"`
 	BaseURL  string `mapstructure:"base_url"`
+	// AWS Bedrock specific
+	AWSAccessKeyID     string `mapstructure:"aws_access_key_id"`
+	AWSSecretAccessKey string `mapstructure:"aws_secret_access_key"`
+	AWSRegion          string `mapstructure:"aws_region"`
 }
 
 // ImageConfig holds image-generation provider settings.
@@ -76,6 +80,7 @@ func Load(cfgFile string) (*Config, error) {
 	// Defaults
 	v.SetDefault("llm.provider", "openai")
 	v.SetDefault("llm.model", "gpt-4o")
+	v.SetDefault("llm.aws_region", "us-east-1")
 	v.SetDefault("image.provider", "nanobanana")
 	v.SetDefault("image.width", 1024)
 	v.SetDefault("image.height", 576)

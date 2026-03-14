@@ -6,62 +6,50 @@ import (
 	"os"
 
 	"github.com/baochen10luo/stagenthand/internal/domain"
+	"github.com/baochen10luo/stagenthand/internal/remotion"
 	"github.com/spf13/cobra"
 )
 
 var storyboardToRemotionCmd = &cobra.Command{
 	Use:   "storyboard-to-remotion-props",
-	Short: "Convert a storyboard with image URLs into remotion props JSON",
+	Short: "Convert a storyboard with image URLs into Remotion props JSON",
+	Long: `Reads a Storyboard JSON (or flat Panel array) from stdin.
+Outputs a RemotionProps JSON to stdout, ready to pipe into remotion-render.
+
+Accepted input formats:
+  - domain.Storyboard  ({"project_id": ..., "scenes": [...]})
+  - []domain.Panel     ([{"scene_number":1, "panel_number":1, ...}])`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Read storyboard or panels array from stdin
-		var input interface{} // can be domain.Storyboard or []domain.Panel depending on pipeline
-		if err := json.NewDecoder(os.Stdin).Decode(&input); err != nil {
-			return fmt.Errorf("failed to decode input: %w", err)
+		raw, err := os.ReadFile("/dev/stdin")
+		if err != nil {
+			return fmt.Errorf("failed to read stdin: %w", err)
 		}
 
-		// Convert to RemotionProps
-		var panels []domain.Panel
-
-		// Very basic type discovery since the pipeline stages send different payload roots occasionally
-		if m, ok := input.(map[string]interface{}); ok {
-			// Storyboard struct layout
-			if scenesVal, has := m["scenes"]; has {
-				scenesBytes, _ := json.Marshal(scenesVal)
-				var scenes []domain.Scene
-				json.Unmarshal(scenesBytes, &scenes)
-				for _, s := range scenes {
-					panels = append(panels, s.Panels...)
-				}
-			} else {
-				// Single Scene or Project? Just fallback
-			}
-		} else if arr, ok := input.([]interface{}); ok {
-			// Array of Panels layout
-			arrBytes, _ := json.Marshal(arr)
-			json.Unmarshal(arrBytes, &panels)
-		} else {
-			return fmt.Errorf("unrecognized pipeline output structure")
+		props, err := parseAndConvert(raw, cfg.Image.Width, cfg.Image.Height)
+		if err != nil {
+			return err
 		}
 
-		props := domain.RemotionProps{
-			ProjectID: "default",
-			Title:     "Generated Drama",
-			Panels:    panels,
-			FPS:       24,
-			Width:     cfg.Image.Width,
-			Height:    cfg.Image.Height,
-		}
-
-		if dryRun {
-			// Dry-run mode sends valid output but no side effects
-		}
-
-		if err := json.NewEncoder(os.Stdout).Encode(props); err != nil {
-			return fmt.Errorf("failed to encode props: %w", err)
-		}
-
-		return nil
+		return json.NewEncoder(os.Stdout).Encode(props)
 	},
+}
+
+// parseAndConvert is extracted for testability (no os.Stdin dependency).
+func parseAndConvert(raw []byte, width, height int) (domain.RemotionProps, error) {
+	// Try Storyboard first
+	var sb domain.Storyboard
+	if err := json.Unmarshal(raw, &sb); err == nil && len(sb.Scenes) > 0 {
+		return remotion.StoryboardToProps(sb, width, height, 24), nil
+	}
+
+	// Try flat Panel array
+	var panels []domain.Panel
+	if err := json.Unmarshal(raw, &panels); err == nil && len(panels) > 0 {
+		projectID := "default"
+		return remotion.PanelsToProps(projectID, panels, width, height, 24), nil
+	}
+
+	return domain.RemotionProps{}, fmt.Errorf("unrecognized input: expected Storyboard or []Panel JSON")
 }
 
 func init() {
