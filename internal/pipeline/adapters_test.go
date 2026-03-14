@@ -3,6 +3,8 @@ package pipeline_test
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -52,6 +54,32 @@ func TestImageClientBatcher_PropagatesError(t *testing.T) {
 	_, err := batcher.BatchGenerateImages(context.Background(), panels, "error-proj")
 	if err == nil {
 		t.Error("expected error to propagate, got nil")
+	}
+}
+
+func TestImageClientBatcher_ResumeSkipsGeneration(t *testing.T) {
+	tmpDir := t.TempDir()
+	
+	panels := []domain.Panel{
+		{SceneNumber: 1, PanelNumber: 1, Description: "already done"},
+	}
+
+	// Create the file beforehand so it triggers the resume logic
+	fullDir := filepath.Join(tmpDir, "resume-proj")
+	os.MkdirAll(fullDir, 0755)
+	absPath := filepath.Join(fullDir, "scene_1_panel_1.png")
+	os.WriteFile(absPath, []byte("existing data"), 0644)
+
+	// Inject a mock that will ERROR if called. If resume works, it won't be called.
+	batcher := pipeline.NewImageClientBatcher(&mockImageClient{err: errors.New("SHOULD NOT BE CALLED")}, tmpDir)
+
+	result, err := batcher.BatchGenerateImages(context.Background(), panels, "resume-proj")
+	if err != nil {
+		t.Fatalf("unexpected error (API called instead of resumed?): %v", err)
+	}
+
+	if result[0].ImageURL != absPath {
+		t.Errorf("expected ImageURL to point to existing file %s, got %s", absPath, result[0].ImageURL)
 	}
 }
 

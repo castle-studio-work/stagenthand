@@ -35,13 +35,23 @@ func (b *ImageClientBatcher) BatchGenerateImages(ctx context.Context, panels []d
 
 	result := make([]domain.Panel, len(panels))
 	for i, p := range panels {
+		filename := fmt.Sprintf("scene_%d_panel_%d.png", p.SceneNumber, p.PanelNumber)
+		absPath := filepath.Join(fullDir, filename)
+
+		// Resume Logic (Money-saving mechanism)
+		// If the file already exists and is not empty, skip generation.
+		if info, err := os.Stat(absPath); err == nil && info.Size() > 0 {
+			// Skip generation, just reuse existing file
+			p.ImageURL = absPath
+			result[i] = p
+			continue
+		}
+
 		imgBytes, err := b.client.GenerateImage(ctx, p.Description, p.CharacterRefs)
 		if err != nil {
 			return nil, fmt.Errorf("panel %d-%d image gen failed: %w", p.SceneNumber, p.PanelNumber, err)
 		}
 
-		filename := fmt.Sprintf("scene_%d_panel_%d.png", p.SceneNumber, p.PanelNumber)
-		absPath := filepath.Join(fullDir, filename)
 		if err := os.WriteFile(absPath, imgBytes, 0644); err != nil {
 			return nil, fmt.Errorf("failed to save image %s: %w", absPath, err)
 		}
