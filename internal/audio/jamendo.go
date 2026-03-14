@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // MusicClient defines the interface for fetching background music.
@@ -30,8 +31,14 @@ func NewJamendoClient(clientID string) *JamendoClient {
 // SearchAndDownload searches Jamendo by tags, picks the first match, and downloads its MP3 audio.
 func (c *JamendoClient) SearchAndDownload(ctx context.Context, tags string) ([]byte, error) {
 	// 1. Search for a track
+	// The LLM might return "suspense+dark" or "suspense, dark".
+	// We normalize these to spaces so url.QueryEscape turns them into "suspense+dark",
+	// which Jamendo correctly interprets as an AND search for multiple tags.
+	normalizedTags := strings.ReplaceAll(tags, "+", " ")
+	normalizedTags = strings.ReplaceAll(normalizedTags, ",", " ")
+
 	apiURL := fmt.Sprintf("https://api.jamendo.com/v3.0/tracks/?client_id=%s&format=json&limit=1&tags=%s",
-		c.clientID, url.QueryEscape(tags))
+		c.clientID, url.QueryEscape(normalizedTags))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
