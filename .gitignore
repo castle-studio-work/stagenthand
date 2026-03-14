@@ -31,3 +31,7 @@ node_modules/
 # Artifacts
 *.out
 *.patch
+stagenthand
+test_output/
+shand
+.gobuild/

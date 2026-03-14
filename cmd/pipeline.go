@@ -60,6 +60,9 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 		return stageError("pipeline", "image_init_error", err.Error())
 	}
 
+	shandHome, _ := os.UserHomeDir()
+	shandHome = filepath.Join(shandHome, ".shand")
+
 	// Build checkpoint store
 	db, err := store.New(cfg.Store.DBPath)
 	if err != nil {
@@ -71,7 +74,7 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	// Wire orchestrator
 	orch := pipeline.NewOrchestrator(pipeline.OrchestratorDeps{
 		LLM:         llmClient,
-		Images:      pipeline.NewImageClientBatcher(imgClient),
+		Images:      pipeline.NewImageClientBatcher(imgClient, shandHome),
 		Checkpoints: ckptGate,
 		DryRun:      dryRun,
 		SkipHITL:    pipelineSkipHITL,
@@ -83,7 +86,7 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	}
 
 	// Write remotion props
-	props := remotion.StoryboardToProps(result.Storyboard, cfg.Image.Width, cfg.Image.Height, 24)
+	props := remotion.PanelsToProps(result.Storyboard.ProjectID, result.Panels, cfg.Image.Width, cfg.Image.Height, 24)
 	if err := writeResults(result, props); err != nil {
 		return stageError("pipeline", "output_error", err.Error())
 	}
