@@ -3,9 +3,12 @@ package audio
 import (
 	"context"
 	"fmt"
+	"html"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
 )
 
 // PollyCLIClient uses the AWS CLI to generate speech.
@@ -41,9 +44,12 @@ func (c *PollyCLIClient) GenerateSpeech(ctx context.Context, text string) ([]byt
 	tmpFile := filepath.Join(os.TempDir(), fmt.Sprintf("polly_%d.mp3", os.Getpid()))
 	defer os.Remove(tmpFile)
 
-	// Command: aws polly synthesize-speech --text "Hello" --output-format mp3 --voice-id Zhiyu out.mp3
+	ssmlText := formatSSML(text)
+
+	// Command: aws polly synthesize-speech --text-type ssml --text "<speak>...</speak>" --output-format mp3 --voice-id Zhiyu out.mp3
 	cmd := exec.CommandContext(ctx, "aws", "polly", "synthesize-speech",
-		"--text", text,
+		"--text-type", "ssml",
+		"--text", ssmlText,
 		"--output-format", "mp3",
 		"--voice-id", c.voiceID,
 		"--language-code", c.languageCode,
@@ -71,4 +77,41 @@ func (c *PollyCLIClient) GenerateSpeech(ctx context.Context, text string) ([]byt
 	}
 
 	return audioBytes, nil
+}
+
+// formatSSML parses the raw dialogue text and wraps it in SSML.
+// It detects common script cues like "Whisper:" and maps them to Amazon Polly effects.
+func formatSSML(dialogue string) string {
+	// 1. Detect and strip whisper tag (case-insensitive)
+	isWhisper := false
+	whisperRegex := regexp.MustCompile(`(?i)^(whisper:\s*|\[whispers?\]\s*|\(whispers?\)\s*)`)
+	if whisperRegex.MatchString(dialogue) {
+		isWhisper = true
+		dialogue = whisperRegex.ReplaceAllString(dialogue, "")
+	}
+
+	// 2. Strip standard narrator/character name prefixes (e.g. "Narrator: ", "SYSTEM: ")
+	prefixRegex := regexp.MustCompile(`^[\p{L}0-9\s]+:\s*`)
+	dialogue = prefixRegex.ReplaceAllString(dialogue, "")
+
+	// 3. Strip stage directions in brackets/parentheses e.g. [sighs]
+	tagsRegex := regexp.MustCompile(`\[.*?\]|\(.*?\)`)
+	dialogue = tagsRegex.ReplaceAllString(dialogue, "")
+
+	// 4. Scrub quote marks to avoid TTS awkward pauses and XML collision
+	dialogue = strings.ReplaceAll(dialogue, "\"", "")
+	dialogue = strings.ReplaceAll(dialogue, "'", "")
+
+	// 5. XML Escape to protect SSML parser
+	safeText := html.EscapeString(strings.TrimSpace(dialogue))
+
+	if safeText == "" {
+		return "<speak></speak>"
+	}
+
+	// 6. Wrap in SSML
+	if isWhisper {
+		return fmt.Sprintf("<speak><amazon:effect name=\"whispered\">%s</amazon:effect></speak>", safeText)
+	}
+	return fmt.Sprintf("<speak>%s</speak>", safeText)
 }
