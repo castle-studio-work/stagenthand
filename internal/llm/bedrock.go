@@ -113,3 +113,66 @@ func (b *BedrockClient) GenerateTransformation(ctx context.Context, systemPrompt
 
 	return []byte(content), nil
 }
+
+// ReviewVideo implements VideoCriticClient.
+func (b *BedrockClient) ReviewVideo(ctx context.Context, systemPrompt string, inputData []byte, videoFormat string, videoBytes []byte) ([]byte, error) {
+	format := brtypes.VideoFormat(videoFormat)
+	videoBlock := brtypes.VideoBlock{
+		Format: format,
+		Source: &brtypes.VideoSourceMemberBytes{
+			Value: videoBytes,
+		},
+	}
+
+	contentBlocks := []brtypes.ContentBlock{
+		&brtypes.ContentBlockMemberVideo{Value: videoBlock},
+	}
+	if len(inputData) > 0 {
+		contentBlocks = append(contentBlocks, &brtypes.ContentBlockMemberText{Value: string(inputData)})
+	}
+
+	input := &bedrockruntime.ConverseInput{
+		ModelId: aws.String(b.modelID),
+		System: []brtypes.SystemContentBlock{
+			&brtypes.SystemContentBlockMemberText{Value: systemPrompt},
+		},
+		Messages: []brtypes.Message{
+			{
+				Role:    brtypes.ConversationRoleUser,
+				Content: contentBlocks,
+			},
+		},
+	}
+
+	output, err := b.api.Converse(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("bedrock video converse failed: %w", err)
+	}
+
+	msgOutput, ok := output.Output.(*brtypes.ConverseOutputMemberMessage)
+	if !ok {
+		return nil, errors.New("unexpected output type from bedrock converse")
+	}
+
+	if len(msgOutput.Value.Content) == 0 {
+		return nil, errors.New("bedrock returned empty response content")
+	}
+
+	textBlock, ok := msgOutput.Value.Content[0].(*brtypes.ContentBlockMemberText)
+	if !ok {
+		return nil, errors.New("bedrock response content is not text")
+	}
+
+	content := strings.TrimSpace(textBlock.Value)
+
+	if strings.HasPrefix(content, "```json") {
+		content = strings.TrimPrefix(content, "```json")
+	} else if strings.HasPrefix(content, "```") {
+		content = strings.TrimPrefix(content, "```")
+	}
+	if strings.HasSuffix(content, "```") {
+		content = strings.TrimSuffix(content, "```")
+	}
+
+	return []byte(strings.TrimSpace(content)), nil
+}
