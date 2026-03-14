@@ -1,0 +1,21 @@
+# StagentHand (shand)
+CLI-first AI short drama generation pipeline (Go).
+Phase 1: CLI + Store + Server ✅
+Phase 2/3: LLM Pipeline + Image Provider (Merged) 🚧
+
+## Tech Stack
+- Language: Go (1.21+)
+- CLI: Cobra
+- Config: Viper
+- DB: SQLite (GORM)
+- Server: Gin (:28080)
+- Testing: testify
+
+## Directory Structure
+- /cmd: CLI commands
+- /internal/domain: Data structures (Job, Panel, etc.)
+- /internal/store: Persistence (GORM)
+- /internal/server: HTTP API for HITL
+- /internal/llm: LLM Pipeline and Providers
+- /internal/image: Image Generation Providers
+- /config: Configuration management

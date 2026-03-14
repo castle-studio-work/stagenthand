@@ -9,16 +9,16 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-// OpenAICompatibleClient connects (via a proxy or standard endpoint) 
+// GeminiClient connects (via a Zeabur proxy or OpenAI-compatible endpoint) 
 // to generate text output for our pipeline steps.
-type OpenAICompatibleClient struct {
+type GeminiClient struct {
 	client *resty.Client
 	apiKey string
 	model  string
 }
 
-// NewOpenAICompatibleClient handles exponential backoff and sets up resty.
-func NewOpenAICompatibleClient(baseURL, apiKey, model string) *OpenAICompatibleClient {
+// NewGeminiClient handles exponential backoff and sets up resty.
+func NewGeminiClient(baseURL, apiKey, model string) *GeminiClient {
 	if baseURL == "" {
 		baseURL = "https://pgb.zeabur.app/v1"
 	}
@@ -33,7 +33,7 @@ func NewOpenAICompatibleClient(baseURL, apiKey, model string) *OpenAICompatibleC
 		SetRetryWaitTime(2 * time.Second).
 		SetRetryMaxWaitTime(10 * time.Second)
 
-	return &OpenAICompatibleClient{
+	return &GeminiClient{
 		client: r,
 		apiKey: apiKey,
 		model:  model,
@@ -41,7 +41,7 @@ func NewOpenAICompatibleClient(baseURL, apiKey, model string) *OpenAICompatibleC
 }
 
 // GenerateTransformation hits a standard Chat Completions endpoint.
-func (c *OpenAICompatibleClient) GenerateTransformation(ctx context.Context, systemPrompt string, inputData []byte) ([]byte, error) {
+func (c *GeminiClient) GenerateTransformation(ctx context.Context, systemPrompt string, inputData []byte) ([]byte, error) {
 	type Message struct {
 		Role    string `json:"role"`
 		Content string `json:"content"`

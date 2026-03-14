@@ -3,7 +3,7 @@ package image
 import "context"
 
 // Client is the interface that wraps basic image generation methods.
-// It adheres to DIP to decouple the application logic from specific providers
+// It adheres to DIP to decouple the application logic from specific providers 
 // (e.g. NanoBanana, Z-Image).
 type Client interface {
 	// GenerateImage sends a prompt and an optional list of character reference image paths,

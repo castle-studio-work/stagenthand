@@ -88,7 +88,7 @@ func Load(cfgFile string) (*Config, error) {
 	v.SetDefault("video.provider", "grok")
 	v.SetDefault("remotion.composition", "ShortDrama")
 	v.SetDefault("store.db_path", "~/.shand/shand.db")
-	v.SetDefault("server.port", 18080)
+	v.SetDefault("server.port", 28080)
 
 	// Env vars: SHAND_LLM_PROVIDER, SHAND_IMAGE_API_KEY, ...
 	v.SetEnvPrefix("SHAND")

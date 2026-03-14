@@ -36,20 +36,6 @@ func NewClient(provider string, dryRun bool, cfg *config.Config) (Client, error)
 			}
 		}
 		return NewOpenAICompatibleClient(baseURL, apiKey, model), nil
-	case "bedrock":
-		if cfg == nil {
-			return nil, fmt.Errorf("bedrock provider requires config")
-		}
-		modelID := cfg.LLM.Model
-		if modelID == "" {
-			modelID = "amazon.nova-pro-v1:0"
-		}
-		return NewBedrockClient(
-			cfg.LLM.AWSAccessKeyID,
-			cfg.LLM.AWSSecretAccessKey,
-			cfg.LLM.AWSRegion,
-			modelID,
-		)
 	default:
 		return nil, fmt.Errorf("provider %s not implemented yet. Use --dry-run for testing", provider)
 	}

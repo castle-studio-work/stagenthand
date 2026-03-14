@@ -80,7 +80,7 @@ ShortDrama.tsx：每 Panel 顯示背景圖+字幕，淡入淡出轉場
 FPS：24，解析度：1024x576
 
 ## 實作順序
-Phase 1（第1週）：cobra骨架 + config(viper) + domain/types + SQLite(gorm) + status/checkpoint + Gin HTTP :18080
+Phase 1（第1週）：cobra骨架 + config(viper) + domain/types + SQLite(gorm) + status/checkpoint + Gin HTTP :28080
 Phase 2（第2週）：LLM interface + story-to-outline/outline-to-storyboard/storyboard-to-panels + dry-run
 Phase 3（第3週）：image interface (nanobanana) + panel-to-image/panels-to-images + Discord notify + Grok video
 Phase 4（第4週）：remotion-template + storyboard-to-remotion-props + render/preview

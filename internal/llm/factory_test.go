@@ -45,26 +45,6 @@ func TestNewClient(t *testing.T) {
 		assert.True(t, ok)
 	})
 
-	t.Run("bedrock provider", func(t *testing.T) {
-		bedrockCfg := &config.Config{
-			LLM: config.LLMConfig{
-				AWSAccessKeyID:     "AKIATEST",
-				AWSSecretAccessKey: "secret",
-				AWSRegion:          "us-east-1",
-			},
-		}
-		client, err := llm.NewClient("bedrock", false, bedrockCfg)
-		assert.NoError(t, err)
-		_, ok := client.(*llm.BedrockClient)
-		assert.True(t, ok)
-	})
-
-	t.Run("bedrock without config", func(t *testing.T) {
-		client, err := llm.NewClient("bedrock", false, nil)
-		assert.ErrorContains(t, err, "requires config")
-		assert.Nil(t, client)
-	})
-
 	t.Run("unknown provider", func(t *testing.T) {
 		client, err := llm.NewClient("unknown", false, nil)
 		assert.ErrorContains(t, err, "not implemented")

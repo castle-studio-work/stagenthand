@@ -27,4 +27,4 @@ store:
   db_path: ~/.shand/shand.db
 
 server:
-  port: 18080
+  port: 28080
