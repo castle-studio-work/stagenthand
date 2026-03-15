@@ -82,10 +82,11 @@ func (j Job) IsTerminal() bool {
 type CheckpointStage string
 
 const (
-	StageOutline    CheckpointStage = "outline"
-	StageStoryboard CheckpointStage = "storyboard"
-	StageImages     CheckpointStage = "images"
-	StageFinal      CheckpointStage = "final"
+	StageOutline       CheckpointStage = "outline"
+	StageStoryboard    CheckpointStage = "storyboard"
+	StageImages        CheckpointStage = "images"
+	StageFinal         CheckpointStage = "final"
+	StageSeriesSummary CheckpointStage = "series_summary"
 )
 
 // String implements fmt.Stringer.

@@ -16,19 +16,23 @@ import (
 	"github.com/baochen10luo/stagenthand/internal/pipeline"
 	"github.com/baochen10luo/stagenthand/internal/remotion"
 	"github.com/baochen10luo/stagenthand/internal/render"
+	"github.com/baochen10luo/stagenthand/internal/series"
 	"github.com/baochen10luo/stagenthand/internal/store"
 	"github.com/baochen10luo/stagenthand/internal/video"
 	"github.com/spf13/cobra"
 )
 
 var (
-	pipelineSkipHITL   bool
-	pipelineOutputDir  string
-	pipelineLanguage   string
-	pipelineMaxRetries int
-	pipelineEpisodes   int
-	pipelineBatchConc  int
-	pipelineFormat     string // "landscape" or "portrait"
+	pipelineSkipHITL     bool
+	pipelineOutputDir    string
+	pipelineLanguage     string
+	pipelineMaxRetries   int
+	pipelineEpisodes     int
+	pipelineBatchConc    int
+	pipelineFormat       string // "landscape" or "portrait"
+	pipelineMultiSpeaker bool
+	pipelineSeriesMemory bool
+	pipelineSeriesWindow int
 )
 
 var pipelineCmd = &cobra.Command{
@@ -107,11 +111,24 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Build audio batcher: multi-speaker or legacy
+	var audioBatcher pipeline.AudioBatcher
+	if pipelineMultiSpeaker {
+		reg := character.NewFileRegistry(shandHome)
+		multiSpeakerClient := audio.NewPollyMultiSpeakerClient(
+			cfg.LLM.AWSRegion, cfg.LLM.AWSAccessKeyID, cfg.LLM.AWSSecretAccessKey,
+			pipelineLanguage, reg,
+		)
+		audioBatcher = pipeline.NewMultiSpeakerAudioBatcher(multiSpeakerClient, shandHome)
+	} else {
+		audioBatcher = pipeline.NewAudioClientBatcher(audioClient, shandHome)
+	}
+
 	// Wire orchestrator
 	deps := pipeline.OrchestratorDeps{
 		LLM:         llmClient,
 		Images:      pipeline.NewImageClientBatcherWithRegistry(imgClient, shandHome, character.NewFileRegistry(shandHome)),
-		Audio:       pipeline.NewAudioClientBatcher(audioClient, shandHome),
+		Audio:       audioBatcher,
 		Music:       pipeline.NewMusicClientBatcher(musicClient, shandHome),
 		Checkpoints: ckptGate,
 		DryRun:      dryRun,
@@ -126,6 +143,20 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 			Episodes:    pipelineEpisodes,
 			Concurrency: pipelineBatchConc,
 		}
+
+		// Enable series continuity when --series-memory is set and we have > 1 episode
+		if pipelineSeriesMemory {
+			memoryPath := filepath.Join(pipelineOutputDir, "series_memory.json")
+			if pipelineOutputDir == "" {
+				home, _ := os.UserHomeDir()
+				memoryPath = filepath.Join(home, ".shand", "series_memory.json")
+			}
+			batchCfg.SeriesRepo = series.NewFileRepository(memoryPath)
+			batchCfg.Summarizer = series.NewLLMSummarizer(llmClient)
+			batchCfg.WindowSize = pipelineSeriesWindow
+			batchCfg.CheckpointGate = ckptGate
+		}
+
 		batchResult, err := pipeline.RunBatch(context.Background(), orch, inputData, batchCfg)
 		if err != nil {
 			return stageError("pipeline", "batch_error", err.Error())
@@ -308,5 +339,10 @@ func init() {
 	pipelineCmd.Flags().IntVar(&pipelineBatchConc, "batch-concurrency", 2, "max concurrent workers in batch mode")
 	pipelineCmd.Flags().StringVar(&pipelineFormat, "format", "landscape",
 		"Output video format: landscape (1024×576) or portrait (576×1024 for TikTok/Reels/Shorts)")
+	pipelineCmd.Flags().BoolVar(&pipelineMultiSpeaker, "multi-speaker", false, "enable per-character voice routing using character registry (requires --language)")
+	pipelineCmd.Flags().BoolVar(&pipelineSeriesMemory, "series-memory", false,
+		"Enable series continuity across episodes. Requires --episodes > 1.")
+	pipelineCmd.Flags().IntVar(&pipelineSeriesWindow, "series-window", 3,
+		"Number of recent episodes to inject as context. (default: 3)")
 	rootCmd.AddCommand(pipelineCmd)
 }
