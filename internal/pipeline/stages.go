@@ -111,6 +111,7 @@ Output JSON MUST follow this schema:
 Target total video length: approximately 30–50 seconds. Use 4–7 panels maximum.
 Each panel's 'duration_sec' should reflect the time needed to naturally speak the dialogue aloud PLUS viewer breathing time. Estimate ~0.12 seconds per character. Keep individual dialogue short and punchy — no more than 30 words per panel.
 CRITICAL: Every panel MUST have a 'dialogue' field. If the character is not speaking, use a VoiceOver (VO) to narrate the emotion, sacrifice, or plot context so the audience understands what is happening.
+Each panel should have at most one primary speaker. Split multi-speaker exchanges into separate panels.
 Output JSON MUST follow this schema:
 {
   "project_id": "...",
@@ -121,6 +122,9 @@ Output JSON MUST follow this schema:
       "panel_number": 1,
       "description": "...",
       "dialogue": "...",
+      "dialogue_lines": [
+        {"speaker": "角色名", "text": "對白內容", "emotion": "neutral"}
+      ],
       "character_refs": [],
       "duration_sec": 4.0,
       "directive": {

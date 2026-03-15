@@ -144,18 +144,26 @@ type Scene struct {
 	Panels      []Panel `json:"panels"`
 }
 
+// DialogueLine represents a single spoken line by one character.
+type DialogueLine struct {
+	Speaker string `json:"speaker"`           // character name; "" = narrator
+	Text    string `json:"text"`
+	Emotion string `json:"emotion,omitempty"` // happy | sad | angry | whisper | neutral
+}
+
 // Panel represents a single image frame with associated metadata.
 type Panel struct {
 	SceneNumber   int              `json:"scene_number"`
 	PanelNumber   int              `json:"panel_number"`
 	Description   string           `json:"description"`         // image generation prompt
-	Dialogue      string           `json:"dialogue"`            // subtitle text
+	Dialogue      string           `json:"dialogue"`            // subtitle text (backward compat)
 	CharacterRefs []string         `json:"character_refs"`           // paths to character reference images
 	Characters    []string         `json:"characters,omitempty"`     // character name list (for registry lookup)
 	ImageURL      string           `json:"image_url,omitempty"` // populated after generation
 	AudioURL      string           `json:"audio_url,omitempty"` // populated after TTS generation
 	DurationSec   float64          `json:"duration_sec"`        // display duration in Remotion
 	Directive     *PanelDirective  `json:"directive,omitempty"` // per-panel rendering directives
+	DialogueLines []DialogueLine   `json:"dialogue_lines,omitempty"` // NEW: structured per-speaker lines
 }
 
 // PanelDirective holds per-panel rendering instructions for the Remotion template.

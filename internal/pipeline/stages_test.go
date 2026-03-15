@@ -82,3 +82,12 @@ func TestBuildPrompt_LanguageInjection_StillWorks(t *testing.T) {
 	assert.Contains(t, prompt, "motion_effect", "prompt must still contain motion_effect")
 	assert.Contains(t, prompt, "English", "prompt must contain language injection for en-US")
 }
+
+func TestBuildStoryboardToPanelsPrompt_IncludesDialogueLines(t *testing.T) {
+	t.Parallel()
+
+	prompt := pipeline.BuildStoryboardToPanelsPrompt("zh-TW", domain.Storyboard{})
+
+	assert.Contains(t, prompt, "dialogue_lines", "prompt schema must include dialogue_lines field")
+	assert.Contains(t, prompt, "speaker", "prompt schema must include speaker field in dialogue_lines")
+}

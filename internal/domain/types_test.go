@@ -196,3 +196,110 @@ func TestEditOperationType_Constants(t *testing.T) {
 		t.Errorf("expected 8 EditOperationType constants, got %d", len(ops))
 	}
 }
+
+func TestDialogueLine_JSONRoundTrip(t *testing.T) {
+	line := domain.DialogueLine{
+		Speaker: "Alice",
+		Text:    "Hello world",
+		Emotion: "happy",
+	}
+
+	data, err := json.Marshal(line)
+	if err != nil {
+		t.Fatalf("Marshal failed: %v", err)
+	}
+
+	var got domain.DialogueLine
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+
+	if got.Speaker != line.Speaker {
+		t.Errorf("Speaker: got %q, want %q", got.Speaker, line.Speaker)
+	}
+	if got.Text != line.Text {
+		t.Errorf("Text: got %q, want %q", got.Text, line.Text)
+	}
+	if got.Emotion != line.Emotion {
+		t.Errorf("Emotion: got %q, want %q", got.Emotion, line.Emotion)
+	}
+}
+
+func TestDialogueLine_EmotionOmittedWhenEmpty(t *testing.T) {
+	line := domain.DialogueLine{
+		Speaker: "",
+		Text:    "Narrator voice",
+	}
+
+	data, err := json.Marshal(line)
+	if err != nil {
+		t.Fatalf("Marshal failed: %v", err)
+	}
+
+	raw := string(data)
+	if contains := func(s, sub string) bool {
+		for i := 0; i <= len(s)-len(sub); i++ {
+			if s[i:i+len(sub)] == sub {
+				return true
+			}
+		}
+		return false
+	}; contains(raw, `"emotion"`) {
+		t.Errorf("emotion should be omitted when empty, got: %s", raw)
+	}
+}
+
+func TestPanel_DialogueLinesField(t *testing.T) {
+	panel := domain.Panel{
+		SceneNumber: 1,
+		PanelNumber: 1,
+		Description: "A scene",
+		Dialogue:    "Hello",
+		DurationSec: 3.0,
+		DialogueLines: []domain.DialogueLine{
+			{Speaker: "Alice", Text: "Hello", Emotion: "neutral"},
+			{Speaker: "Bob", Text: "World", Emotion: "happy"},
+		},
+	}
+
+	data, err := json.Marshal(panel)
+	if err != nil {
+		t.Fatalf("Marshal failed: %v", err)
+	}
+
+	var got domain.Panel
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+
+	if len(got.DialogueLines) != 2 {
+		t.Fatalf("DialogueLines len: got %d, want 2", len(got.DialogueLines))
+	}
+	if got.DialogueLines[0].Speaker != "Alice" {
+		t.Errorf("DialogueLines[0].Speaker: got %q, want Alice", got.DialogueLines[0].Speaker)
+	}
+	if got.DialogueLines[1].Emotion != "happy" {
+		t.Errorf("DialogueLines[1].Emotion: got %q, want happy", got.DialogueLines[1].Emotion)
+	}
+	// Ensure backward-compat Dialogue string still survives round-trip
+	if got.Dialogue != "Hello" {
+		t.Errorf("Dialogue string: got %q, want Hello", got.Dialogue)
+	}
+}
+
+func TestPanel_BackwardCompat(t *testing.T) {
+	// Old-format JSON with only "dialogue" (no dialogue_lines)
+	raw := `{"scene_number":1,"panel_number":1,"description":"test","dialogue":"Old dialogue","character_refs":[],"duration_sec":4.0}`
+
+	var panel domain.Panel
+	if err := json.Unmarshal([]byte(raw), &panel); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+
+	if panel.Dialogue != "Old dialogue" {
+		t.Errorf("Dialogue: got %q, want 'Old dialogue'", panel.Dialogue)
+	}
+	if panel.DialogueLines != nil {
+		t.Errorf("DialogueLines should be nil for old-format JSON, got %v", panel.DialogueLines)
+	}
+}
