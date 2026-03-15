@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/baochen10luo/stagenthand/internal/audio"
+	"github.com/baochen10luo/stagenthand/internal/character"
 	"github.com/baochen10luo/stagenthand/internal/domain"
 	"github.com/baochen10luo/stagenthand/internal/image"
 	"github.com/baochen10luo/stagenthand/internal/store"
@@ -17,13 +18,21 @@ import (
 // ImageClientBatcher adapts an image.Client into the ImageBatcher interface.
 // It generates images concurrently for each panel using the underlying client.
 type ImageClientBatcher struct {
-	client  image.Client
-	rootDir string // e.g. /Users/paul/.shand/
+	client   image.Client
+	rootDir  string            // e.g. /Users/paul/.shand/
+	registry character.Registry // optional, nil = disabled
 }
 
 // NewImageClientBatcher wraps an image.Client as an ImageBatcher.
 func NewImageClientBatcher(c image.Client, rootDir string) ImageBatcher {
-	return &ImageClientBatcher{client: c, rootDir: rootDir}
+	return NewImageClientBatcherWithRegistry(c, rootDir, nil)
+}
+
+// NewImageClientBatcherWithRegistry wraps an image.Client as an ImageBatcher with an optional character registry.
+// When registry is non-nil, character names in each panel are looked up and their reference image paths
+// are appended to CharacterRefs before image generation.
+func NewImageClientBatcherWithRegistry(c image.Client, rootDir string, reg character.Registry) ImageBatcher {
+	return &ImageClientBatcher{client: c, rootDir: rootDir, registry: reg}
 }
 
 // BatchGenerateImages generates images for all panels sequentially.
@@ -46,6 +55,14 @@ func (b *ImageClientBatcher) BatchGenerateImages(ctx context.Context, panels []d
 			p.ImageURL = absPath
 			result[i] = p
 			continue
+		}
+
+		if b.registry != nil {
+			for _, name := range p.Characters {
+				if path, err := b.registry.Lookup(ctx, name); err == nil && path != "" {
+					p.CharacterRefs = append(p.CharacterRefs, path)
+				}
+			}
 		}
 
 		imgBytes, err := b.client.GenerateImage(ctx, p.Description, p.CharacterRefs)

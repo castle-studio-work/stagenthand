@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/baochen10luo/stagenthand/internal/audio"
+	"github.com/baochen10luo/stagenthand/internal/character"
 	"github.com/baochen10luo/stagenthand/internal/domain"
 	"github.com/baochen10luo/stagenthand/internal/image"
 	"github.com/baochen10luo/stagenthand/internal/llm"
@@ -106,7 +107,7 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	// Wire orchestrator
 	deps := pipeline.OrchestratorDeps{
 		LLM:         llmClient,
-		Images:      pipeline.NewImageClientBatcher(imgClient, shandHome),
+		Images:      pipeline.NewImageClientBatcherWithRegistry(imgClient, shandHome, character.NewFileRegistry(shandHome)),
 		Audio:       pipeline.NewAudioClientBatcher(audioClient, shandHome),
 		Music:       pipeline.NewMusicClientBatcher(musicClient, shandHome),
 		Checkpoints: ckptGate,

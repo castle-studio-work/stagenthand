@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/baochen10luo/stagenthand/internal/character"
 	"github.com/baochen10luo/stagenthand/internal/domain"
 	"github.com/baochen10luo/stagenthand/internal/pipeline"
 )
@@ -80,6 +81,95 @@ func TestImageClientBatcher_ResumeSkipsGeneration(t *testing.T) {
 
 	if result[0].ImageURL != absPath {
 		t.Errorf("expected ImageURL to point to existing file %s, got %s", absPath, result[0].ImageURL)
+	}
+}
+
+// --- ImageClientBatcher with Registry tests ---
+
+// captureImageClient records the characterRefs passed to GenerateImage for assertion.
+type captureImageClient struct {
+	capturedRefs []string
+	data         []byte
+}
+
+func (c *captureImageClient) GenerateImage(_ context.Context, _ string, refs []string) ([]byte, error) {
+	c.capturedRefs = append([]string(nil), refs...)
+	if c.data != nil {
+		return c.data, nil
+	}
+	return []byte("fakepng"), nil
+}
+
+func TestImageClientBatcherWithRegistry_LooksUpCharacterRefs(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	reg := character.NewMockRegistry()
+	_, _ = reg.Register(context.Background(), "Alice", []byte("alice-img"))
+
+	cap := &captureImageClient{}
+	batcher := pipeline.NewImageClientBatcherWithRegistry(cap, tmpDir, reg)
+
+	panels := []domain.Panel{
+		{SceneNumber: 1, PanelNumber: 1, Description: "scene", Characters: []string{"Alice"}},
+	}
+
+	_, err := batcher.BatchGenerateImages(context.Background(), panels, "proj/images")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(cap.capturedRefs) == 0 {
+		t.Fatal("expected character refs to be appended, got none")
+	}
+	want := "/mock/characters/Alice/ref.png"
+	if cap.capturedRefs[0] != want {
+		t.Errorf("expected ref %q, got %q", want, cap.capturedRefs[0])
+	}
+}
+
+func TestImageClientBatcherWithRegistry_NilRegistryNoLookup(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	cap := &captureImageClient{}
+	// nil registry — no lookup should happen
+	batcher := pipeline.NewImageClientBatcherWithRegistry(cap, tmpDir, nil)
+
+	panels := []domain.Panel{
+		{SceneNumber: 1, PanelNumber: 1, Description: "scene", Characters: []string{"Bob"}},
+	}
+
+	_, err := batcher.BatchGenerateImages(context.Background(), panels, "proj/images")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// CharacterRefs starts empty and no registry lookup occurs, so refs should remain empty
+	if len(cap.capturedRefs) != 0 {
+		t.Errorf("expected no character refs when registry is nil, got %v", cap.capturedRefs)
+	}
+}
+
+func TestImageClientBatcherWithRegistry_MissingCharacterSkipped(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Empty registry — Lookup returns "" for unknown names
+	reg := character.NewMockRegistry()
+
+	cap := &captureImageClient{}
+	batcher := pipeline.NewImageClientBatcherWithRegistry(cap, tmpDir, reg)
+
+	panels := []domain.Panel{
+		{SceneNumber: 1, PanelNumber: 1, Description: "scene", Characters: []string{"Unknown"}},
+	}
+
+	_, err := batcher.BatchGenerateImages(context.Background(), panels, "proj/images")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Unknown character returns "" so it must not be appended
+	if len(cap.capturedRefs) != 0 {
+		t.Errorf("expected empty refs for missing character, got %v", cap.capturedRefs)
 	}
 }
 
