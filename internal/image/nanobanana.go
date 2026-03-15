@@ -16,16 +16,25 @@ type NanoBananaClient struct {
 	client *resty.Client
 	apiKey string
 	model  string
+	width  int
+	height int
 }
 
 // NewNanoBananaClient initializes the HTTP client with exponential backoff retries.
-func NewNanoBananaClient(baseURL, apiKey, model string) *NanoBananaClient {
+// width and height default to 1024x576 (landscape) if zero.
+func NewNanoBananaClient(baseURL, apiKey, model string, width, height int) *NanoBananaClient {
 	if baseURL == "" {
 		// Based on Gemini memory rules, route everything through the Zeabur proxy by default
 		baseURL = "https://pgb.zeabur.app/v1"
 	}
 	if model == "" {
 		model = "nano-banana-2"
+	}
+	if width == 0 {
+		width = 1024
+	}
+	if height == 0 {
+		height = 576
 	}
 
 	r := resty.New().
@@ -39,6 +48,8 @@ func NewNanoBananaClient(baseURL, apiKey, model string) *NanoBananaClient {
 		client: r,
 		apiKey: apiKey,
 		model:  model,
+		width:  width,
+		height: height,
 	}
 }
 
@@ -51,8 +62,10 @@ func (c *NanoBananaClient) GenerateImage(ctx context.Context, prompt string, cha
 		Model          string   `json:"model"`
 		Prompt         string   `json:"prompt"`
 		ResponseFormat string   `json:"response_format"`
+		Width          int      `json:"width,omitempty"`
+		Height         int      `json:"height,omitempty"`
 		// NanoBanana custom extension for consistent characters
-		CharacterRefs  []string `json:"character_refs,omitempty"` 
+		CharacterRefs  []string `json:"character_refs,omitempty"`
 	}
 
 	type ImageResponse struct {
@@ -68,6 +81,8 @@ func (c *NanoBananaClient) GenerateImage(ctx context.Context, prompt string, cha
 		Model:          c.model,
 		Prompt:         prompt,
 		ResponseFormat: "b64_json",
+		Width:          c.width,
+		Height:         c.height,
 		CharacterRefs:  characterRefs,
 	}
 

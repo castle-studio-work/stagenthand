@@ -3,6 +3,8 @@ package image_test
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -32,10 +34,29 @@ func TestNanoBananaClient_GenerateImage(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := image.NewNanoBananaClient(server.URL, "test-key", "test-model")
+		client := image.NewNanoBananaClient(server.URL, "test-key", "test-model", 0, 0)
 		res, err := client.GenerateImage(context.Background(), "A test prompt", []string{"/path"})
 		assert.NoError(t, err)
 		assert.Equal(t, dummyImg, res)
+	})
+
+	t.Run("portrait dimensions in request", func(t *testing.T) {
+		var capturedBody map[string]any
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(body, &capturedBody)
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"data": [{ "b64_json": "` + b64Img + `" }]}`))
+		}))
+		defer server.Close()
+
+		client := image.NewNanoBananaClient(server.URL, "test-key", "test-model", 576, 1024)
+		_, err := client.GenerateImage(context.Background(), "portrait test", nil)
+		assert.NoError(t, err)
+		assert.Equal(t, float64(576), capturedBody["width"])
+		assert.Equal(t, float64(1024), capturedBody["height"])
 	})
 
 	t.Run("api error 400", func(t *testing.T) {
@@ -46,7 +67,7 @@ func TestNanoBananaClient_GenerateImage(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := image.NewNanoBananaClient(server.URL, "test-key", "test-model")
+		client := image.NewNanoBananaClient(server.URL, "test-key", "test-model", 0, 0)
 		_, err := client.GenerateImage(context.Background(), "A test prompt", nil)
 		assert.ErrorContains(t, err, "bad prompt")
 	})
@@ -59,7 +80,7 @@ func TestNanoBananaClient_GenerateImage(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := image.NewNanoBananaClient(server.URL, "test-key", "test-model")
+		client := image.NewNanoBananaClient(server.URL, "test-key", "test-model", 0, 0)
 		_, err := client.GenerateImage(context.Background(), "A test prompt", nil)
 		assert.ErrorContains(t, err, "empty data")
 	})
@@ -72,13 +93,13 @@ func TestNanoBananaClient_GenerateImage(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := image.NewNanoBananaClient(server.URL, "test-key", "test-model")
+		client := image.NewNanoBananaClient(server.URL, "test-key", "test-model", 0, 0)
 		_, err := client.GenerateImage(context.Background(), "A test prompt", nil)
 		assert.ErrorContains(t, err, "failed to decode")
 	})
 
 	t.Run("http failed", func(t *testing.T) {
-		client := image.NewNanoBananaClient("http://127.0.0.1:0", "test-key", "test-model")
+		client := image.NewNanoBananaClient("http://127.0.0.1:0", "test-key", "test-model", 0, 0)
 		_, err := client.GenerateImage(context.Background(), "A test prompt", nil)
 		assert.ErrorContains(t, err, "http request failed")
 	})

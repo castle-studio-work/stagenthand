@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/baochen10luo/stagenthand/internal/domain"
+	"github.com/baochen10luo/stagenthand/internal/render"
 )
 
 const defaultPanelDurationSec = 3.0
@@ -28,7 +29,21 @@ func StoryboardToProps(sb domain.Storyboard, width, height, fps int) domain.Remo
 
 // PanelsToProps converts a flat []Panel directly into RemotionProps.
 // Useful when the pipeline has already extracted panels from the storyboard.
+// width and height are explicit overrides; pass 0,0 to derive from format.
 func PanelsToProps(projectID string, panels []domain.Panel, width, height, fps int, bgmURL string, directives *domain.Directives) domain.RemotionProps {
+	return PanelsToPropsWithFormat(projectID, panels, width, height, fps, bgmURL, directives, render.VideoFormatLandscape)
+}
+
+// PanelsToPropsWithFormat converts a flat []Panel into RemotionProps using the given VideoFormat
+// to set canvas dimensions. Explicit width/height > 0 override the format dimensions.
+func PanelsToPropsWithFormat(projectID string, panels []domain.Panel, width, height, fps int, bgmURL string, directives *domain.Directives, format render.VideoFormat) domain.RemotionProps {
+	fw, fh := format.Dimensions()
+	if width == 0 {
+		width = fw
+	}
+	if height == 0 {
+		height = fh
+	}
 	normalized := make([]domain.Panel, len(panels))
 	for i, p := range panels {
 		p = withDefaultDuration(p)
