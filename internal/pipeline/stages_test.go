@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/baochen10luo/stagenthand/internal/domain"
 	"github.com/baochen10luo/stagenthand/internal/llm"
 	"github.com/baochen10luo/stagenthand/internal/pipeline"
 	"github.com/stretchr/testify/assert"
@@ -61,4 +62,23 @@ func TestRunTransformationStage(t *testing.T) {
 		_, err := pipeline.RunTransformationStage(context.Background(), client, pipeline.PromptStoryToOutline, []byte("req"))
 		assert.ErrorContains(t, err, "transformer returned empty output")
 	})
+}
+
+func TestBuildPrompt_ContainsDirectiveSchema(t *testing.T) {
+	t.Parallel()
+
+	prompt := pipeline.BuildStoryboardToPanelsPrompt("zh-TW", domain.Storyboard{})
+
+	assert.Contains(t, prompt, "directive", "prompt must contain directive field in schema")
+	assert.Contains(t, prompt, "motion_effect", "prompt must contain motion_effect field")
+	assert.Contains(t, prompt, "ken_burns_in", "prompt must contain ken_burns_in as a motion_effect value")
+}
+
+func TestBuildPrompt_LanguageInjection_StillWorks(t *testing.T) {
+	t.Parallel()
+
+	prompt := pipeline.BuildStoryboardToPanelsPrompt("en-US", domain.Storyboard{})
+
+	assert.Contains(t, prompt, "motion_effect", "prompt must still contain motion_effect")
+	assert.Contains(t, prompt, "English", "prompt must contain language injection for en-US")
 }

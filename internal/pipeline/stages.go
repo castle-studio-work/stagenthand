@@ -45,6 +45,12 @@ var languageInstructions = map[string]string{
 	"cmn-CN": "IMPORTANT: All 'dialogue' fields MUST be written in Simplified Chinese (简体中文).",
 }
 
+// BuildStoryboardToPanelsPrompt returns the PromptStoryboardToPanels with optional language instruction appended.
+// Exported for testing. Internal callers use buildStoryboardToPanelsPrompt.
+func BuildStoryboardToPanelsPrompt(language string, sb domain.Storyboard) string {
+	return buildStoryboardToPanelsPrompt(language, sb)
+}
+
 // buildStoryboardToPanelsPrompt returns the PromptStoryboardToPanels with optional language instruction appended.
 func buildStoryboardToPanelsPrompt(language string, sb domain.Storyboard) string {
 	base := PromptStoryboardToPanels
@@ -101,7 +107,7 @@ Output JSON MUST follow this schema:
   ]
 }`
 
-	PromptStoryboardToPanels = `You are a visual panel designer. Convert the input storyboard JSON into a detailed panel-by-panel generation JSON.
+	PromptStoryboardToPanels = `You are a visual panel designer and cinematographer. Convert the input storyboard JSON into a detailed panel-by-panel generation JSON.
 Target total video length: approximately 30–50 seconds. Use 4–7 panels maximum.
 Each panel's 'duration_sec' should reflect the time needed to naturally speak the dialogue aloud PLUS viewer breathing time. Estimate ~0.12 seconds per character. Keep individual dialogue short and punchy — no more than 30 words per panel.
 CRITICAL: Every panel MUST have a 'dialogue' field. If the character is not speaking, use a VoiceOver (VO) to narrate the emotion, sacrifice, or plot context so the audience understands what is happening.
@@ -116,8 +122,47 @@ Output JSON MUST follow this schema:
       "description": "...",
       "dialogue": "...",
       "character_refs": [],
-      "duration_sec": 4.0
+      "duration_sec": 4.0,
+      "directive": {
+        "motion_effect": "ken_burns_in",
+        "motion_intensity": 0.05,
+        "transition_in": "fade",
+        "transition_out": "fade",
+        "subtitle_effect": "fade",
+        "subtitle_position": "bottom"
+      }
     }
   ]
-}`
+}
+
+DIRECTOR RULES — You are the cinematographer. Vary motion and transitions to match the scene's emotional beat:
+
+motion_effect choices (pick based on scene type):
+- "ken_burns_in"  → slow zoom in: intimacy, revelation, tension building
+- "ken_burns_out" → slow zoom out: establishing shot, loneliness, ending, wide context
+- "pan_left"      → lateral pan left: movement, departure, searching
+- "pan_right"     → lateral pan right: arrival, discovery, following action
+- "static"        → no movement: shock, confrontation, held breath moment
+
+motion_intensity: 0.03–0.08 (subtle = 0.03, dramatic = 0.08)
+
+transition_in choices: "fade" | "cut" | "dissolve" | "wipe_left"
+- "cut"      → abrupt, action-driven or shocking moment
+- "fade"     → soft, time passing, emotional shift
+- "dissolve" → memory, dream, gentle transition
+- "wipe_left" → scene change, new location
+
+subtitle_effect: "fade" | "typewriter" | "none"
+- "typewriter" → for key reveals or dramatic spoken lines
+- "fade"       → standard
+- "none"       → silent panels
+
+subtitle_position: "bottom" (default) | "top" | "center"
+
+RULES:
+1. Never use the same motion_effect for more than 2 consecutive panels
+2. Opening panel: prefer "ken_burns_out" to establish the world
+3. Climax/conflict panel: prefer "ken_burns_in" + transition_in "cut"
+4. Final panel: prefer "ken_burns_out" + transition_out "fade"
+5. motion_intensity should vary — don't use 0.05 for every panel`
 )

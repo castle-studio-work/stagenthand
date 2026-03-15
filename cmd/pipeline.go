@@ -144,6 +144,7 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	var criticAttempts int
 	var criticApproved bool
 	var finalVideoPath string
+	var retryStrategy string
 
 	if pipelineMaxRetries > 0 {
 		executor := remotion.NewCLIExecutor(dryRun)
@@ -192,31 +193,63 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 				break
 			}
 
-			// REJECT: adjust props for next attempt (only if there are more attempts)
+			// REJECT: smart routing based on which dimension failed (only if more attempts remain)
 			if attempt < pipelineMaxRetries {
 				if props.Directives == nil {
 					props.Directives = &domain.Directives{}
 				}
-				if eval.VisualScore < 8 {
-					props.Directives.StylePrompt = "highly detailed, 8K, " + props.Directives.StylePrompt
-				}
-				if eval.AudioSyncScore < 8 {
-					depth := props.Directives.DuckingDepth - 0.1
-					if depth < 0.1 {
-						depth = 0.1
-					}
-					props.Directives.DuckingDepth = depth
-				}
-				if eval.ToneScore < 6 {
-					for i := range props.Panels {
-						props.Panels[i].DurationSec *= 1.2
-					}
-				}
 
-				// Write updated props for next render
-				if err := writeResults(result, props); err != nil {
-					fmt.Fprintf(os.Stderr, "[Warning] failed to write updated props: %v\n", err)
-					break
+				if eval.VisualScore < 8 {
+					// 視覺路線：需要重生成圖片
+					retryStrategy = "visual_regen"
+
+					// 1. 調整 StylePrompt
+					props.Directives.StylePrompt = "highly detailed, cinematic lighting, 8K, " + props.Directives.StylePrompt
+
+					// 2. 刪除現有圖片讓 Smart Resume 強制重生成
+					imagesDir := filepath.Join(shandHome, "projects", props.ProjectID, "images")
+					os.RemoveAll(imagesDir)
+
+					// 3. Marshal props 作為新的 orchestrator 輸入
+					propsJSON, _ := json.Marshal(props)
+
+					// 4. 重跑 orchestrator（重生成圖片，Smart Resume 跳過音頻）
+					newResult, orchErr := orch.Run(cmd.Context(), propsJSON)
+					if orchErr != nil {
+						fmt.Fprintf(os.Stderr, "[Warning] visual retry failed: %v\n", orchErr)
+						break
+					}
+					result = newResult
+
+					// 5. 更新 props（含新的 image_url）
+					props = remotion.PanelsToProps(result.Storyboard.ProjectID, result.Panels, cfg.Image.Width, cfg.Image.Height, 24, result.Storyboard.BGMURL, result.Storyboard.Directives)
+					if err := writeResults(result, props); err != nil {
+						fmt.Fprintf(os.Stderr, "[Warning] failed to write updated props after visual retry: %v\n", err)
+						break
+					}
+				} else {
+					// 快速路線：只改 props，不動圖片
+					retryStrategy = "props_only"
+
+					if eval.AudioSyncScore < 8 {
+						depth := props.Directives.DuckingDepth - 0.1
+						if depth < 0.1 {
+							depth = 0.1
+						}
+						props.Directives.DuckingDepth = depth
+					}
+					if eval.ToneScore < 6 {
+						for i := range props.Panels {
+							props.Panels[i].DurationSec *= 1.2
+						}
+					}
+					// AdherenceScore < 8：記錄在 feedback，暫不自動修（無法確定方向）
+
+					// 重新寫入更新後的 props（不重跑 orchestrator）
+					if err := writeResults(result, props); err != nil {
+						fmt.Fprintf(os.Stderr, "[Warning] failed to write updated props: %v\n", err)
+						break
+					}
 				}
 			}
 		}
@@ -230,6 +263,7 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 		"critic_attempts": criticAttempts,
 		"critic_approved": criticApproved,
 		"output_video":    finalVideoPath,
+		"retry_strategy":  retryStrategy,
 	}
 	return json.NewEncoder(os.Stdout).Encode(summary)
 }
