@@ -15,12 +15,18 @@ import (
 	"github.com/baochen10luo/stagenthand/internal/pipeline"
 	"github.com/baochen10luo/stagenthand/internal/remotion"
 	"github.com/baochen10luo/stagenthand/internal/store"
+	"github.com/baochen10luo/stagenthand/internal/video"
 	"github.com/spf13/cobra"
 )
 
 var (
-	pipelineSkipHITL  bool
-	pipelineOutputDir string
+	pipelineSkipHITL      bool
+	pipelineOutputDir     string
+	pipelineLanguage      string
+	pipelineMaxRetries    int
+	pipelineCriticVideo   string
+	pipelineEpisodes      int
+	pipelineBatchConc     int
 )
 
 var pipelineCmd = &cobra.Command{
@@ -31,7 +37,9 @@ Runs the complete pipeline: story → outline → storyboard → images → remo
 
 Output files are written to --output-dir (default: ~/.shand/projects/<project-id>/).
 Use --skip-hitl for a fully automated run without human checkpoints.
-Use --dry-run to validate the full pipeline without calling external APIs or generating files.`,
+Use --dry-run to validate the full pipeline without calling external APIs or generating files.
+Use --language to set the TTS/dialogue language (default: zh-TW).
+Use --episodes N to produce multiple episodes in batch mode.`,
 	RunE: runPipeline,
 }
 
@@ -72,14 +80,32 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	ckptRepo := store.NewGormCheckpointRepository(db)
 	ckptGate := pipeline.NewCheckpointGate(ckptRepo)
 
-	// Build audio client (Polly)
-	audioClient := audio.NewPollyCLIClient(cfg.LLM.AWSRegion, cfg.LLM.AWSAccessKeyID, cfg.LLM.AWSSecretAccessKey)
+	// Build audio client (Polly) with language support
+	audioClient := audio.NewPollyCLIClientWithLanguage(
+		cfg.LLM.AWSRegion, cfg.LLM.AWSAccessKeyID, cfg.LLM.AWSSecretAccessKey,
+		pipelineLanguage,
+	)
 
 	// Build music client (Jamendo)
 	musicClient := audio.NewJamendoClient(cfg.Audio.JamendoClientID)
 
+	// Build critic evaluator if max retries > 0 and critic video path provided
+	var criticEvaluator pipeline.VideoCriticEvaluator
+	if pipelineMaxRetries > 0 && pipelineCriticVideo != "" && cfg != nil &&
+		cfg.LLM.AWSAccessKeyID != "" && cfg.LLM.AWSSecretAccessKey != "" {
+		bedrockClient, bedrockErr := llm.NewBedrockClient(
+			cfg.LLM.AWSAccessKeyID,
+			cfg.LLM.AWSSecretAccessKey,
+			cfg.LLM.AWSRegion,
+			cfg.LLM.Model,
+		)
+		if bedrockErr == nil && bedrockClient != nil {
+			criticEvaluator = newVideoCriticAdapter(video.NewCritic(bedrockClient))
+		}
+	}
+
 	// Wire orchestrator
-	orch := pipeline.NewOrchestrator(pipeline.OrchestratorDeps{
+	deps := pipeline.OrchestratorDeps{
 		LLM:         llmClient,
 		Images:      pipeline.NewImageClientBatcher(imgClient, shandHome),
 		Audio:       pipeline.NewAudioClientBatcher(audioClient, shandHome),
@@ -87,7 +113,25 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 		Checkpoints: ckptGate,
 		DryRun:      dryRun,
 		SkipHITL:    pipelineSkipHITL,
-	})
+		Critic:      criticEvaluator,
+		MaxRetries:  pipelineMaxRetries,
+		VideoPath:   pipelineCriticVideo,
+		Language:    pipelineLanguage,
+	}
+	orch := pipeline.NewOrchestrator(deps)
+
+	// Batch mode
+	if pipelineEpisodes > 1 {
+		batchCfg := pipeline.BatchConfig{
+			Episodes:    pipelineEpisodes,
+			Concurrency: pipelineBatchConc,
+		}
+		batchResult, err := pipeline.RunBatch(context.Background(), orch, inputData, batchCfg)
+		if err != nil {
+			return stageError("pipeline", "batch_error", err.Error())
+		}
+		return json.NewEncoder(os.Stdout).Encode(batchResult)
+	}
 
 	result, err := orch.Run(context.Background(), inputData)
 	if err != nil {
@@ -102,9 +146,11 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 
 	// Emit final summary to stdout (JSON)
 	summary := map[string]any{
-		"project_id": props.ProjectID,
-		"panels":     len(props.Panels),
-		"dry_run":    dryRun,
+		"project_id":      props.ProjectID,
+		"panels":          len(props.Panels),
+		"dry_run":         dryRun,
+		"critic_attempts": result.CriticAttempts,
+		"critic_approved": result.CriticApproved,
 	}
 	return json.NewEncoder(os.Stdout).Encode(summary)
 }
@@ -132,5 +178,10 @@ func writeResults(result *pipeline.PipelineResult, props domain.RemotionProps) e
 func init() {
 	pipelineCmd.Flags().BoolVar(&pipelineSkipHITL, "skip-hitl", false, "skip all human-in-the-loop checkpoints")
 	pipelineCmd.Flags().StringVar(&pipelineOutputDir, "output-dir", "", "output directory (default: ~/.shand/projects/<project-id>)")
+	pipelineCmd.Flags().StringVar(&pipelineLanguage, "language", "zh-TW", "TTS/dialogue language (zh-TW, en-US, en-GB, ja-JP, ko-KR, cmn-CN)")
+	pipelineCmd.Flags().IntVar(&pipelineMaxRetries, "max-retries", 0, "maximum AI Critic retry attempts (requires --critic-video)")
+	pipelineCmd.Flags().StringVar(&pipelineCriticVideo, "critic-video", "", "path to rendered mp4 for AI Critic evaluation")
+	pipelineCmd.Flags().IntVar(&pipelineEpisodes, "episodes", 1, "number of episodes to produce in batch mode")
+	pipelineCmd.Flags().IntVar(&pipelineBatchConc, "batch-concurrency", 2, "max concurrent workers in batch mode")
 	rootCmd.AddCommand(pipelineCmd)
 }

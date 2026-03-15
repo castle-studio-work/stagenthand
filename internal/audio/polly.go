@@ -11,6 +11,25 @@ import (
 	"strings"
 )
 
+// languageConfig maps a BCP-47 language tag to the AWS Polly voice and language code.
+type languageConfig struct {
+	voiceID      string
+	languageCode string
+}
+
+// languageMap defines supported TTS languages. Keys are BCP-47 tags.
+var languageMap = map[string]languageConfig{
+	"zh-TW":  {voiceID: "Zhiyu", languageCode: "cmn-CN"},
+	"cmn-CN": {voiceID: "Zhiyu", languageCode: "cmn-CN"},
+	"en-US":  {voiceID: "Joanna", languageCode: "en-US"},
+	"en-GB":  {voiceID: "Amy", languageCode: "en-GB"},
+	"ja-JP":  {voiceID: "Takumi", languageCode: "ja-JP"},
+	"ko-KR":  {voiceID: "Seoyeon", languageCode: "ko-KR"},
+}
+
+// defaultLanguageConfig is the fallback when a language is not found in languageMap.
+var defaultLanguageConfig = languageConfig{voiceID: "Zhiyu", languageCode: "cmn-CN"}
+
 // PollyCLIClient uses the AWS CLI to generate speech.
 // It bypasses the need for the heavy AWS Go SDK for a simple MVP.
 type PollyCLIClient struct {
@@ -24,13 +43,24 @@ type PollyCLIClient struct {
 }
 
 // NewPollyCLIClient creates a new TTS client backed by the AWS CLI.
+// Defaults to zh-TW (Zhiyu voice, cmn-CN language code).
 func NewPollyCLIClient(region, accessKey, secretKey string) *PollyCLIClient {
+	return NewPollyCLIClientWithLanguage(region, accessKey, secretKey, "zh-TW")
+}
+
+// NewPollyCLIClientWithLanguage creates a new TTS client with the specified language.
+// If the language is not supported or empty, it falls back to zh-TW.
+func NewPollyCLIClientWithLanguage(region, accessKey, secretKey, language string) *PollyCLIClient {
 	if region == "" {
 		region = "us-east-1"
 	}
+	cfg, ok := languageMap[language]
+	if !ok {
+		cfg = defaultLanguageConfig
+	}
 	return &PollyCLIClient{
-		voiceID:      "Zhiyu",
-		languageCode: "cmn-CN",
+		voiceID:      cfg.voiceID,
+		languageCode: cfg.languageCode,
 		region:       region,
 		accessKey:    accessKey,
 		secretKey:    secretKey,

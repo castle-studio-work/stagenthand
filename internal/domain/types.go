@@ -4,6 +4,61 @@ package domain
 
 import "time"
 
+// PanelRef identifies a specific panel within a project.
+type PanelRef struct {
+	SceneNumber int `json:"scene_number"`
+	PanelNumber int `json:"panel_number"`
+}
+
+// EditOperationType defines the kind of post-production operation.
+type EditOperationType string
+
+const (
+	EditOpRegenerateImage      EditOperationType = "regenerate_image"
+	EditOpRegenerateAudio      EditOperationType = "regenerate_audio"
+	EditOpReplaceBGM           EditOperationType = "replace_bgm"
+	EditOpPatchDialogue        EditOperationType = "patch_dialogue"
+	EditOpPatchDuration        EditOperationType = "patch_duration"
+	EditOpPatchPanelDirective  EditOperationType = "patch_panel_directive"
+	EditOpPatchGlobalDirective EditOperationType = "patch_global_directive"
+	EditOpRerender             EditOperationType = "rerender"
+)
+
+// EditOperation represents a single post-production action.
+type EditOperation struct {
+	Type        EditOperationType      `json:"type"`
+	TargetPanel *PanelRef              `json:"target_panel,omitempty"` // nil for global ops
+	Params      map[string]interface{} `json:"params,omitempty"`
+	Priority    int                    `json:"priority"` // 1=highest
+	Rationale   string                 `json:"rationale,omitempty"`
+}
+
+// EditPlan is the full post-production plan produced by LLMEditPlanner.
+type EditPlan struct {
+	Version       string          `json:"version"`
+	GeneratedAt   time.Time       `json:"generated_at"`
+	Operations    []EditOperation `json:"operations"`
+	EstimatedCost float64         `json:"estimated_cost_usd"`
+	Rationale     string          `json:"rationale"`
+}
+
+// EditResult records the outcome of applying an EditPlan.
+type EditResult struct {
+	PlanVersion       string        `json:"plan_version"`
+	OperationsApplied int           `json:"operations_applied"`
+	OperationsFailed  int           `json:"operations_failed"`
+	UpdatedProps      RemotionProps `json:"updated_props"`
+	Success           bool          `json:"success"`
+	Errors            []string      `json:"errors,omitempty"`
+}
+
+// PostProdLoopResult records the outcome of a full postprod loop.
+type PostProdLoopResult struct {
+	Converged  bool   `json:"converged"`
+	Iterations int    `json:"iterations"`
+	FinalVideo string `json:"final_video,omitempty"`
+}
+
 // JobStatus represents the lifecycle state of a pipeline job.
 type JobStatus string
 
@@ -95,7 +150,8 @@ type Panel struct {
 	PanelNumber   int              `json:"panel_number"`
 	Description   string           `json:"description"`         // image generation prompt
 	Dialogue      string           `json:"dialogue"`            // subtitle text
-	CharacterRefs []string         `json:"character_refs"`      // paths to character reference images
+	CharacterRefs []string         `json:"character_refs"`           // paths to character reference images
+	Characters    []string         `json:"characters,omitempty"`     // character name list (for registry lookup)
 	ImageURL      string           `json:"image_url,omitempty"` // populated after generation
 	AudioURL      string           `json:"audio_url,omitempty"` // populated after TTS generation
 	DurationSec   float64          `json:"duration_sec"`        // display duration in Remotion
@@ -158,6 +214,8 @@ type Directives struct {
 	// Visual
 	ColorFilter string `json:"color_filter,omitempty"` // none|cinematic|vintage|cyberpunk
 	StylePrompt string `json:"style_prompt,omitempty"` // globally prepended prompt text
+	// Language
+	Language string `json:"language,omitempty"` // BCP-47 language tag, e.g. "zh-TW", "en-US"
 }
 
 // RemotionProps is the JSON payload passed to the Remotion template.

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/baochen10luo/stagenthand/internal/domain"
 )
 
 // Transformer defines the behavior needed to run a transformation stage.
@@ -32,6 +34,35 @@ func RunTransformationStage(ctx context.Context, transformer Transformer, system
 	}
 
 	return output, nil
+}
+
+// languageInstructions maps BCP-47 language tags to dialogue instructions appended to PromptStoryboardToPanels.
+var languageInstructions = map[string]string{
+	"en-US": "IMPORTANT: All 'dialogue' fields MUST be written in English. Use natural American English.",
+	"en-GB": "IMPORTANT: All 'dialogue' fields MUST be written in English. Use natural British English.",
+	"ja-JP": "IMPORTANT: All 'dialogue' fields MUST be written in Japanese (日本語). Use natural conversational Japanese.",
+	"ko-KR": "IMPORTANT: All 'dialogue' fields MUST be written in Korean (한국어). Use natural conversational Korean.",
+	"cmn-CN": "IMPORTANT: All 'dialogue' fields MUST be written in Simplified Chinese (简体中文).",
+}
+
+// buildStoryboardToPanelsPrompt returns the PromptStoryboardToPanels with optional language instruction appended.
+func buildStoryboardToPanelsPrompt(language string, sb domain.Storyboard) string {
+	base := PromptStoryboardToPanels
+
+	// Check language from storyboard directives first, then from orchestrator deps language
+	lang := language
+	if sb.Directives != nil && sb.Directives.Language != "" {
+		lang = sb.Directives.Language
+	}
+
+	if lang == "" || lang == "zh-TW" {
+		return base
+	}
+
+	if instruction, ok := languageInstructions[lang]; ok {
+		return base + "\n" + instruction
+	}
+	return base
 }
 
 // System prompts for the Phase 2 stages.

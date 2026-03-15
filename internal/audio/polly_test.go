@@ -77,3 +77,49 @@ func TestPollyCLIClient_GenerateSpeech_Error(t *testing.T) {
 		t.Fatal("expected error from failed command, got nil")
 	}
 }
+
+func TestNewPollyCLIClientWithLanguage_LanguageMapping(t *testing.T) {
+	tests := []struct {
+		language         string
+		expectedVoiceID  string
+		expectedLangCode string
+	}{
+		{"zh-TW", "Zhiyu", "cmn-CN"},
+		{"cmn-CN", "Zhiyu", "cmn-CN"},
+		{"en-US", "Joanna", "en-US"},
+		{"en-GB", "Amy", "en-GB"},
+		{"ja-JP", "Takumi", "ja-JP"},
+		{"ko-KR", "Seoyeon", "ko-KR"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.language, func(t *testing.T) {
+			c := NewPollyCLIClientWithLanguage("us-east-1", "ak", "sk", tt.language)
+			if c.voiceID != tt.expectedVoiceID {
+				t.Errorf("voiceID = %q, want %q", c.voiceID, tt.expectedVoiceID)
+			}
+			if c.languageCode != tt.expectedLangCode {
+				t.Errorf("languageCode = %q, want %q", c.languageCode, tt.expectedLangCode)
+			}
+		})
+	}
+}
+
+func TestNewPollyCLIClientWithLanguage_UnknownFallback(t *testing.T) {
+	c := NewPollyCLIClientWithLanguage("us-east-1", "ak", "sk", "fr-FR")
+	if c.voiceID != "Zhiyu" {
+		t.Errorf("unknown language: voiceID = %q, want Zhiyu", c.voiceID)
+	}
+	if c.languageCode != "cmn-CN" {
+		t.Errorf("unknown language: languageCode = %q, want cmn-CN", c.languageCode)
+	}
+}
+
+func TestNewPollyCLIClientWithLanguage_EmptyFallback(t *testing.T) {
+	c := NewPollyCLIClientWithLanguage("us-east-1", "ak", "sk", "")
+	if c.voiceID != "Zhiyu" {
+		t.Errorf("empty language: voiceID = %q, want Zhiyu", c.voiceID)
+	}
+	if c.languageCode != "cmn-CN" {
+		t.Errorf("empty language: languageCode = %q, want cmn-CN", c.languageCode)
+	}
+}

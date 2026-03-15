@@ -22,7 +22,7 @@ func TestParseAndConvert_Storyboard(t *testing.T) {
 	}
 	raw, _ := json.Marshal(sb)
 
-	props, err := parseAndConvert(raw, 1024, 576)
+	props, err := parseAndConvert(raw, 1024, 576, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestParseAndConvert_PanelArray(t *testing.T) {
 	}
 	raw, _ := json.Marshal(panels)
 
-	props, err := parseAndConvert(raw, 1920, 1080)
+	props, err := parseAndConvert(raw, 1920, 1080, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -54,7 +54,7 @@ func TestParseAndConvert_PanelArray(t *testing.T) {
 }
 
 func TestParseAndConvert_InvalidInput(t *testing.T) {
-	_, err := parseAndConvert([]byte(`{"not":"valid"}`), 1024, 576)
+	_, err := parseAndConvert([]byte(`{"not":"valid"}`), 1024, 576, "")
 	if err == nil {
 		t.Error("expected error for unrecognized input, got nil")
 	}
