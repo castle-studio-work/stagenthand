@@ -189,5 +189,7 @@ go test -cover ./... && echo "✅ Phase OK"
 - [x] Phase 6：AWS Bedrock LLM/Image + Amazon Polly TTS + 音頻同步
 - [x] Phase 7：AI Critic（多模態視頻評估）+ Jamendo BGM + 字幕淨化 + 動態時長
 - [x] Phase 8：Directives 配置系統（StylePrompt / BGMTags）+ 智能恢復機制
+- [ ] Phase 9：多語言 TTS（--language flag）+ 角色持久化（internal/character/）+ AI Critic auto-retry（--max-retries）+ 批次多集（--episodes N）
+- [ ] Phase 9.5：Agentic 後製（shand postprod evaluate/apply/loop）+ internal/postprod/ 套件 + EditPlan/EditOperation 資料結構
 
-**Current：Phase 9（規劃中）**
+**Current：Phase 9（待實作）**
