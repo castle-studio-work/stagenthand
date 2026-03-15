@@ -74,12 +74,20 @@ func (c *PollyCLIClient) GenerateSpeech(ctx context.Context, text string) ([]byt
 	if text == "" {
 		return nil, nil // No text, no audio
 	}
+	ssmlText := formatSSML(text)
+	return c.SynthesizeSSML(ctx, ssmlText)
+}
+
+// SynthesizeSSML calls AWS Polly with a pre-built SSML string and returns raw MP3 bytes.
+// This is used by MultiSpeakerClient to avoid double-formatting.
+func (c *PollyCLIClient) SynthesizeSSML(ctx context.Context, ssmlText string) ([]byte, error) {
+	if ssmlText == "" || ssmlText == "<speak></speak>" {
+		return nil, nil
+	}
 
 	// Use a temp file because AWS CLI wants to write to a file
 	tmpFile := filepath.Join(os.TempDir(), fmt.Sprintf("polly_%d.mp3", os.Getpid()))
 	defer os.Remove(tmpFile)
-
-	ssmlText := formatSSML(text)
 
 	// Command: aws polly synthesize-speech --text-type ssml --text "<speak>...</speak>" --output-format mp3 --voice-id Zhiyu out.mp3
 	cmd := c.commandFactory(ctx, "aws", "polly", "synthesize-speech",
@@ -113,6 +121,24 @@ func (c *PollyCLIClient) GenerateSpeech(ctx context.Context, text string) ([]byt
 	}
 
 	return audioBytes, nil
+}
+
+// cleanText strips character name prefixes, stage directions, and quote marks
+// from raw dialogue text. Used by both formatSSML and formatSSMLWithEmotion.
+func cleanText(dialogue string) string {
+	// Strip standard narrator/character name prefixes (e.g. "Narrator: ", "SYSTEM: ")
+	prefixRegex := regexp.MustCompile(`^[\p{L}0-9\s]+:\s*`)
+	dialogue = prefixRegex.ReplaceAllString(dialogue, "")
+
+	// Strip stage directions in brackets/parentheses e.g. [sighs]
+	tagsRegex := regexp.MustCompile(`\[.*?\]|\(.*?\)`)
+	dialogue = tagsRegex.ReplaceAllString(dialogue, "")
+
+	// Scrub quote marks to avoid TTS awkward pauses and XML collision
+	dialogue = strings.ReplaceAll(dialogue, "\"", "")
+	dialogue = strings.ReplaceAll(dialogue, "'", "")
+
+	return strings.TrimSpace(dialogue)
 }
 
 // formatSSML parses the raw dialogue text and wraps it in SSML.

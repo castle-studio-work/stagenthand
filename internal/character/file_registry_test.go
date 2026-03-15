@@ -140,3 +140,74 @@ func TestFileRegistry_OverwriteExisting(t *testing.T) {
 		t.Fatal("path should not be empty after overwrite")
 	}
 }
+
+func TestFileRegistry_GetMeta_Found(t *testing.T) {
+	rootDir := t.TempDir()
+	reg := character.NewFileRegistry(rootDir)
+	ctx := context.Background()
+
+	_, err := reg.RegisterWithMeta(ctx, "Alice", []byte("img"), character.CharacterMeta{
+		VoiceID: "Joanna",
+		EmotionPresets: map[string]string{
+			"angry": "fast",
+		},
+	})
+	if err != nil {
+		t.Fatalf("RegisterWithMeta error: %v", err)
+	}
+
+	meta, err := reg.GetMeta(ctx, "Alice")
+	if err != nil {
+		t.Fatalf("GetMeta error: %v", err)
+	}
+	if meta == nil {
+		t.Fatal("GetMeta returned nil for registered character")
+	}
+	if meta.Name != "Alice" {
+		t.Errorf("meta.Name = %q, want Alice", meta.Name)
+	}
+	if meta.VoiceID != "Joanna" {
+		t.Errorf("meta.VoiceID = %q, want Joanna", meta.VoiceID)
+	}
+	if meta.EmotionPresets["angry"] != "fast" {
+		t.Errorf("meta.EmotionPresets[angry] = %q, want fast", meta.EmotionPresets["angry"])
+	}
+}
+
+func TestFileRegistry_GetMeta_NotFound(t *testing.T) {
+	rootDir := t.TempDir()
+	reg := character.NewFileRegistry(rootDir)
+	ctx := context.Background()
+
+	meta, err := reg.GetMeta(ctx, "Ghost")
+	if err != nil {
+		t.Fatalf("GetMeta for unknown character should not error: %v", err)
+	}
+	if meta != nil {
+		t.Errorf("GetMeta for unknown character should return nil, got %+v", meta)
+	}
+}
+
+func TestFileRegistry_Register_WithVoiceID(t *testing.T) {
+	rootDir := t.TempDir()
+	reg := character.NewFileRegistry(rootDir)
+	ctx := context.Background()
+
+	_, err := reg.RegisterWithMeta(ctx, "Bob", []byte("img"), character.CharacterMeta{
+		VoiceID: "Matthew",
+	})
+	if err != nil {
+		t.Fatalf("RegisterWithMeta error: %v", err)
+	}
+
+	meta, err := reg.GetMeta(ctx, "Bob")
+	if err != nil {
+		t.Fatalf("GetMeta error: %v", err)
+	}
+	if meta == nil {
+		t.Fatal("expected meta, got nil")
+	}
+	if meta.VoiceID != "Matthew" {
+		t.Errorf("VoiceID persisted = %q, want Matthew", meta.VoiceID)
+	}
+}

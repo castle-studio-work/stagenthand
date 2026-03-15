@@ -27,7 +27,13 @@ func (r *FileRegistry) characterDir(name string) string {
 
 // Register saves imageBytes as the canonical reference image for the character.
 // Overwrites any previously registered image.
-func (r *FileRegistry) Register(_ context.Context, name string, imageBytes []byte) (string, error) {
+func (r *FileRegistry) Register(ctx context.Context, name string, imageBytes []byte) (string, error) {
+	return r.RegisterWithMeta(ctx, name, imageBytes, CharacterMeta{})
+}
+
+// RegisterWithMeta saves imageBytes and stores the provided meta (VoiceID, EmotionPresets, etc.).
+// Overwrites any previously registered image and meta.
+func (r *FileRegistry) RegisterWithMeta(_ context.Context, name string, imageBytes []byte, extraMeta CharacterMeta) (string, error) {
 	dir := r.characterDir(name)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("character.Register: create dir %s: %w", dir, err)
@@ -39,9 +45,11 @@ func (r *FileRegistry) Register(_ context.Context, name string, imageBytes []byt
 	}
 
 	meta := CharacterMeta{
-		Name:      name,
-		ImagePath: imgPath,
-		CreatedAt: time.Now(),
+		Name:           name,
+		ImagePath:      imgPath,
+		CreatedAt:      time.Now(),
+		VoiceID:        extraMeta.VoiceID,
+		EmotionPresets: extraMeta.EmotionPresets,
 	}
 	metaPath := filepath.Join(dir, "meta.json")
 	metaBytes, err := json.Marshal(meta)
@@ -53,6 +61,23 @@ func (r *FileRegistry) Register(_ context.Context, name string, imageBytes []byt
 	}
 
 	return imgPath, nil
+}
+
+// GetMeta returns the full metadata for a character, or nil if not found.
+func (r *FileRegistry) GetMeta(_ context.Context, name string) (*CharacterMeta, error) {
+	metaPath := filepath.Join(r.characterDir(name), "meta.json")
+	metaBytes, err := os.ReadFile(metaPath)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("character.GetMeta: read %s: %w", metaPath, err)
+	}
+	var meta CharacterMeta
+	if err := json.Unmarshal(metaBytes, &meta); err != nil {
+		return nil, fmt.Errorf("character.GetMeta: unmarshal %s: %w", metaPath, err)
+	}
+	return &meta, nil
 }
 
 // Lookup returns the image path for the given character, or "" if not found.

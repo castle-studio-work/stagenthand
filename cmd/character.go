@@ -30,7 +30,8 @@ var characterShowCmd = &cobra.Command{
 }
 
 var (
-	characterRegisterImage       string
+	characterRegisterImage   string
+	charRegisterVoiceID      string
 	characterGenerateDescription string
 )
 
@@ -89,13 +90,15 @@ func runCharacterRegister(cmd *cobra.Command, args []string) error {
 		return stageError("character register", "read_error", fmt.Sprintf("reading image file: %v", err))
 	}
 	reg := character.NewFileRegistry(characterRegistryDir())
-	imgPath, err := reg.Register(cmd.Context(), name, imgBytes)
+	meta := character.CharacterMeta{VoiceID: charRegisterVoiceID}
+	imgPath, err := reg.RegisterWithMeta(cmd.Context(), name, imgBytes, meta)
 	if err != nil {
 		return stageError("character register", "register_error", err.Error())
 	}
 	result := map[string]string{
 		"name":       name,
 		"image_path": imgPath,
+		"voice_id":   charRegisterVoiceID,
 	}
 	return json.NewEncoder(os.Stdout).Encode(result)
 }
@@ -137,6 +140,7 @@ func runCharacterGenerate(cmd *cobra.Command, args []string) error {
 
 func init() {
 	characterRegisterCmd.Flags().StringVar(&characterRegisterImage, "image", "", "path to the character reference image file (required)")
+	characterRegisterCmd.Flags().StringVar(&charRegisterVoiceID, "voice-id", "", "AWS Polly voice ID for this character (e.g. Joanna, Matthew, Amy)")
 	characterGenerateCmd.Flags().StringVar(&characterGenerateDescription, "description", "", "text description of the character for AI image generation (required)")
 
 	characterCmd.AddCommand(characterListCmd)

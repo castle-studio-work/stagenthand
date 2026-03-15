@@ -15,11 +15,15 @@ type Registry interface {
 	Lookup(ctx context.Context, name string) (string, error)
 	// List returns all registered character names.
 	List(ctx context.Context) ([]string, error)
+	// GetMeta returns the full metadata for a character, or nil if not found.
+	GetMeta(ctx context.Context, name string) (*CharacterMeta, error)
 }
 
 // CharacterMeta holds metadata about a registered character.
 type CharacterMeta struct {
-	Name      string    `json:"name"`
-	ImagePath string    `json:"image_path"`
-	CreatedAt time.Time `json:"created_at"`
+	Name           string            `json:"name"`
+	ImagePath      string            `json:"image_path"`
+	CreatedAt      time.Time         `json:"created_at"`
+	VoiceID        string            `json:"voice_id,omitempty"`
+	EmotionPresets map[string]string `json:"emotion_presets,omitempty"` // maps emotion to SSML prosody hint
 }
