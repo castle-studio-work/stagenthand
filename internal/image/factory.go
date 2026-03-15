@@ -2,32 +2,42 @@ package image
 
 import (
 	"fmt"
+
 	"github.com/baochen10luo/stagenthand/config"
+	"github.com/baochen10luo/stagenthand/internal/render"
 )
 
 // NewClient acts as a factory for Image clients like NanoBanana.
 func NewClient(provider string, dryRun bool, cfg *config.Config) (Client, error) {
+	return NewClientWithFormat(provider, dryRun, cfg, render.VideoFormatLandscape)
+}
+
+// NewClientWithFormat acts as a factory for Image clients, accepting a VideoFormat
+// to configure portrait or landscape image dimensions.
+func NewClientWithFormat(provider string, dryRun bool, cfg *config.Config, format render.VideoFormat) (Client, error) {
 	if dryRun || provider == "mock" {
 		return &MockClient{}, nil
 	}
 
+	width, height := format.Dimensions()
+
 	switch provider {
 	case "nanobanana":
-		// Defaults to Zeabur proxy per memory rules. 
+		// Defaults to Zeabur proxy per memory rules.
 		// If Image API Config has a specific BaseURL we could pass it,
 		// but for now NewNanoBananaClient uses a valid proxy default.
-		return NewNanoBananaClient("", cfg.Image.APIKey, "nano-banana-2"), nil
+		return NewNanoBananaClient("", cfg.Image.APIKey, "nano-banana-2", width, height), nil
 	case "bedrock":
 		return NewNovaCanvasClient(
 			cfg.LLM.AWSAccessKeyID,
 			cfg.LLM.AWSSecretAccessKey,
 			cfg.LLM.AWSRegion,
 			"amazon.nova-canvas-v1:0",
-			cfg.Image.Width,
-			cfg.Image.Height,
+			width,
+			height,
 			"",
 		)
-	default:	
+	default:
 		return nil, fmt.Errorf("provider %s not implemented yet. Use --dry-run for testing", provider)
 	}
 }

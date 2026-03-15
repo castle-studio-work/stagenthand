@@ -40,7 +40,8 @@ function d(panel: Panel): Required<PanelDirective> {
 
 export const PanelSlide: React.FC<PanelSlideProps> = ({ panel, colorFilter }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, width, height } = useVideoConfig();
+  const isPortrait = height > width;
   const dir = d(panel);
   const durationFrames = Math.round(panel.duration_sec * fps);
 
@@ -230,14 +231,16 @@ export const PanelSlide: React.FC<PanelSlideProps> = ({ panel, colorFilter }) =>
             <span
               style={{
                 color: "#fff",
-                fontSize: dir.subtitle_font_size,
+                fontSize: dir.subtitle_font_size !== D.subtitle_font_size
+                  ? dir.subtitle_font_size
+                  : (isPortrait ? 32 : 40),
                 fontWeight: 600,
                 fontFamily:
                   '"Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif',
                 textAlign: "center",
                 textShadow: "0 2px 8px rgba(0,0,0,0.9)",
                 lineHeight: 1.5,
-                maxWidth: "80%",
+                maxWidth: isPortrait ? "92%" : "80%",
               }}
             >
               {subtitleText}

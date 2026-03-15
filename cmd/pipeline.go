@@ -15,6 +15,7 @@ import (
 	"github.com/baochen10luo/stagenthand/internal/llm"
 	"github.com/baochen10luo/stagenthand/internal/pipeline"
 	"github.com/baochen10luo/stagenthand/internal/remotion"
+	"github.com/baochen10luo/stagenthand/internal/render"
 	"github.com/baochen10luo/stagenthand/internal/store"
 	"github.com/baochen10luo/stagenthand/internal/video"
 	"github.com/spf13/cobra"
@@ -27,6 +28,7 @@ var (
 	pipelineMaxRetries int
 	pipelineEpisodes   int
 	pipelineBatchConc  int
+	pipelineFormat     string // "landscape" or "portrait"
 )
 
 var pipelineCmd = &cobra.Command{
@@ -64,7 +66,8 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	if cfg != nil && cfg.Image.Provider != "" {
 		imgProvider = cfg.Image.Provider
 	}
-	imgClient, err := image.NewClient(imgProvider, dryRun, cfg)
+	videoFormat := render.VideoFormat(pipelineFormat)
+	imgClient, err := image.NewClientWithFormat(imgProvider, dryRun, cfg, videoFormat)
 	if err != nil {
 		return stageError("pipeline", "image_init_error", err.Error())
 	}
@@ -136,7 +139,7 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	}
 
 	// Write remotion props
-	props := remotion.PanelsToProps(result.Storyboard.ProjectID, result.Panels, cfg.Image.Width, cfg.Image.Height, 24, result.Storyboard.BGMURL, result.Storyboard.Directives)
+	props := remotion.PanelsToPropsWithFormat(result.Storyboard.ProjectID, result.Panels, cfg.Image.Width, cfg.Image.Height, 24, result.Storyboard.BGMURL, result.Storyboard.Directives, videoFormat)
 	if err := writeResults(result, props); err != nil {
 		return stageError("pipeline", "output_error", err.Error())
 	}
@@ -223,7 +226,7 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 					result = newResult
 
 					// 5. 更新 props（含新的 image_url）
-					props = remotion.PanelsToProps(result.Storyboard.ProjectID, result.Panels, cfg.Image.Width, cfg.Image.Height, 24, result.Storyboard.BGMURL, result.Storyboard.Directives)
+					props = remotion.PanelsToPropsWithFormat(result.Storyboard.ProjectID, result.Panels, cfg.Image.Width, cfg.Image.Height, 24, result.Storyboard.BGMURL, result.Storyboard.Directives, videoFormat)
 					if err := writeResults(result, props); err != nil {
 						fmt.Fprintf(os.Stderr, "[Warning] failed to write updated props after visual retry: %v\n", err)
 						break
@@ -303,5 +306,7 @@ func init() {
 	pipelineCmd.Flags().IntVar(&pipelineMaxRetries, "max-retries", 0, "maximum AI Critic retry attempts; also triggers automatic remotion render after props generation")
 	pipelineCmd.Flags().IntVar(&pipelineEpisodes, "episodes", 1, "number of episodes to produce in batch mode")
 	pipelineCmd.Flags().IntVar(&pipelineBatchConc, "batch-concurrency", 2, "max concurrent workers in batch mode")
+	pipelineCmd.Flags().StringVar(&pipelineFormat, "format", "landscape",
+		"Output video format: landscape (1024×576) or portrait (576×1024 for TikTok/Reels/Shorts)")
 	rootCmd.AddCommand(pipelineCmd)
 }

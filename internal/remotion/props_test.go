@@ -5,6 +5,7 @@ import (
 
 	"github.com/baochen10luo/stagenthand/internal/domain"
 	"github.com/baochen10luo/stagenthand/internal/remotion"
+	"github.com/baochen10luo/stagenthand/internal/render"
 )
 
 func TestStoryboardToRemotionProps_Basic(t *testing.T) {
@@ -95,5 +96,48 @@ func TestPanelsToRemotionProps_DirectArray(t *testing.T) {
 	}
 	if props.Width != 1920 || props.FPS != 30 {
 		t.Errorf("config not propagated: width=%d fps=%d", props.Width, props.FPS)
+	}
+}
+
+func TestPanelsToProps_Portrait(t *testing.T) {
+	panels := []domain.Panel{
+		{SceneNumber: 1, PanelNumber: 1, Description: "p1", Dialogue: "Hello", DurationSec: 2.0},
+	}
+
+	props := remotion.PanelsToPropsWithFormat("proj-portrait", panels, 0, 0, 24, "", nil, render.VideoFormatPortrait)
+
+	if props.Width != 576 {
+		t.Errorf("Width: want 576, got %d", props.Width)
+	}
+	if props.Height != 1024 {
+		t.Errorf("Height: want 1024, got %d", props.Height)
+	}
+}
+
+func TestPanelsToProps_LandscapeDefault(t *testing.T) {
+	panels := []domain.Panel{
+		{SceneNumber: 1, PanelNumber: 1, Description: "p1", Dialogue: "Hello", DurationSec: 2.0},
+	}
+
+	props := remotion.PanelsToPropsWithFormat("proj-landscape", panels, 0, 0, 24, "", nil, render.VideoFormatLandscape)
+
+	if props.Width != 1024 {
+		t.Errorf("Width: want 1024, got %d", props.Width)
+	}
+	if props.Height != 576 {
+		t.Errorf("Height: want 576, got %d", props.Height)
+	}
+}
+
+func TestPanelsToProps_ExplicitDimensionsOverrideFormat(t *testing.T) {
+	panels := []domain.Panel{
+		{SceneNumber: 1, PanelNumber: 1, Description: "p1", Dialogue: "Hello", DurationSec: 2.0},
+	}
+
+	// Explicit 1920x1080 should override format-derived dimensions
+	props := remotion.PanelsToPropsWithFormat("proj-explicit", panels, 1920, 1080, 30, "", nil, render.VideoFormatPortrait)
+
+	if props.Width != 1920 || props.Height != 1080 {
+		t.Errorf("explicit dims not respected: got %dx%d", props.Width, props.Height)
 	}
 }
