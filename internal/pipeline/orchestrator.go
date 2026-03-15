@@ -101,6 +101,11 @@ func (o *Orchestrator) Run(ctx context.Context, inputData []byte) (*PipelineResu
 		return nil, err
 	}
 
+	// HITL: review storyboard before generating panels/images
+	if err := o.checkpoint(ctx, "pipeline", domain.StageStoryboard); err != nil {
+		return nil, err
+	}
+
 	// 3. Storyboard -> Panels
 	panels, err := o.transformStoryboardToPanels(ctx, storyboard)
 	if err != nil {
@@ -199,6 +204,11 @@ func (o *Orchestrator) transformStory(ctx context.Context, story []byte) (domain
 	outlineJSON, err := o.deps.LLM.GenerateTransformation(ctx, PromptStoryToOutline, story)
 	if err != nil {
 		return domain.Storyboard{}, fmt.Errorf("story-to-outline failed: %w", err)
+	}
+
+	// HITL: review outline before generating storyboard
+	if err := o.checkpoint(ctx, "pipeline", domain.StageOutline); err != nil {
+		return domain.Storyboard{}, err
 	}
 
 	// Outline -> Storyboard

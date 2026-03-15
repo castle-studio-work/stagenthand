@@ -256,6 +256,13 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// HITL: final checkpoint after render (only when a video was produced)
+	if !pipelineSkipHITL && finalVideoPath != "" {
+		if err := ckptGate.CreateAndWait(cmd.Context(), "pipeline", domain.StageFinal); err != nil {
+			return stageError("pipeline", "hitl_final_rejected", err.Error())
+		}
+	}
+
 	// Emit final summary to stdout (JSON)
 	summary := map[string]any{
 		"project_id":      props.ProjectID,

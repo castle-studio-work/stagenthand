@@ -203,6 +203,11 @@ func (g *CheckpointGateAdapter) CreateAndWait(ctx context.Context, jobID string,
 		return fmt.Errorf("creating checkpoint: %w", err)
 	}
 
+	// Notify user on stderr
+	fmt.Fprintf(os.Stderr, "\n⏸  HITL checkpoint [stage=%s  id=%s]\n", stage, cp.ID)
+	fmt.Fprintf(os.Stderr, "   Approve : shand checkpoint approve %s\n", cp.ID)
+	fmt.Fprintf(os.Stderr, "   Reject  : shand checkpoint reject  %s\n\n", cp.ID)
+
 	// Poll until resolved or context cancelled
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
