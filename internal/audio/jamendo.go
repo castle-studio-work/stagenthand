@@ -18,6 +18,7 @@ type MusicClient interface {
 // JamendoClient implements MusicClient using the Jamendo v3 API.
 type JamendoClient struct {
 	clientID string
+	baseURL  string
 }
 
 func NewJamendoClient(clientID string) *JamendoClient {
@@ -25,7 +26,7 @@ func NewJamendoClient(clientID string) *JamendoClient {
 		// Public test key commonly used in docs, though limits apply.
 		clientID = "56d30c95"
 	}
-	return &JamendoClient{clientID: clientID}
+	return &JamendoClient{clientID: clientID, baseURL: "https://api.jamendo.com/v3.0/tracks/"}
 }
 
 // SearchAndDownload searches Jamendo by tags, picks the first match, and downloads its MP3 audio.
@@ -37,8 +38,8 @@ func (c *JamendoClient) SearchAndDownload(ctx context.Context, tags string) ([]b
 	normalizedTags := strings.ReplaceAll(tags, "+", " ")
 	normalizedTags = strings.ReplaceAll(normalizedTags, ",", " ")
 
-	apiURL := fmt.Sprintf("https://api.jamendo.com/v3.0/tracks/?client_id=%s&format=json&limit=1&tags=%s",
-		c.clientID, url.QueryEscape(normalizedTags))
+	apiURL := fmt.Sprintf("%s?client_id=%s&format=json&limit=1&tags=%s",
+		c.baseURL, c.clientID, url.QueryEscape(normalizedTags))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {

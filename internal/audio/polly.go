@@ -19,6 +19,8 @@ type PollyCLIClient struct {
 	region       string
 	accessKey    string
 	secretKey    string
+	// commandFactory allows mocking exec.Command for testing
+	commandFactory func(ctx context.Context, name string, args ...string) *exec.Cmd
 }
 
 // NewPollyCLIClient creates a new TTS client backed by the AWS CLI.
@@ -32,6 +34,9 @@ func NewPollyCLIClient(region, accessKey, secretKey string) *PollyCLIClient {
 		region:       region,
 		accessKey:    accessKey,
 		secretKey:    secretKey,
+		commandFactory: func(ctx context.Context, name string, args ...string) *exec.Cmd {
+			return exec.CommandContext(ctx, name, args...)
+		},
 	}
 }
 
@@ -47,7 +52,7 @@ func (c *PollyCLIClient) GenerateSpeech(ctx context.Context, text string) ([]byt
 	ssmlText := formatSSML(text)
 
 	// Command: aws polly synthesize-speech --text-type ssml --text "<speak>...</speak>" --output-format mp3 --voice-id Zhiyu out.mp3
-	cmd := exec.CommandContext(ctx, "aws", "polly", "synthesize-speech",
+	cmd := c.commandFactory(ctx, "aws", "polly", "synthesize-speech",
 		"--engine", "neural",
 		"--text-type", "ssml",
 		"--text", ssmlText,
