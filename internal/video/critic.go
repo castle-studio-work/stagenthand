@@ -55,10 +55,10 @@ You will be provided with:
 2. The original 'RemotionProps' JSON that generated the video.
 
 Your job is to strictly evaluate the video across 4 dimensions, scoring each out of 10. YOU MUST BE HARSH. Do not give passes for "AI limitations".
-1. 'visual_score': Check for glitches and STYLE DRIFT. If Panel 1 is photorealistic and Panel 2 is anime-style, target score < 5. If characters change appearance entirely between shots, score < 6.
-2. 'audio_sync_score': Check for robotic voices and SUBTITLE DESYNC. If the voice sounds like a lifeless GPS navigator, deduct points. If the voice finishes speaking but the typewriter subtitles linger awkwardly for seconds on screen, score < 7.
-3. 'adherence_score': Did the video obey the 'directives' inside the JSON? (e.g., if color_filter is 'cyberpunk', does it look cyberpunk?)
-4. 'tone_score': Check for NARRATIVE COMPLETENESS. If a viewer watching this would be confused about the story, or if the ending (e.g., just saying "Not tonight") lacks context and narrative closure, score < 6.
+1. 'visual_score': Check for glitches and STYLE DRIFT. Visual consistency is paramount. FATAL FLAW: CHARACTER CONSISTENCY. If a main character's face, clothing, or prominent features drastically change between scenes without narrative reason, score < 6. FATAL FLAW: If the on-screen subtitles display leaked metadata tags like "VO:", "V.O.", "Narrator:", or raw quotes, this destroys immersion. If you see this, score < 5.
+2. 'audio_sync_score': Check for audio ducking and voice naturalness. FATAL FLAW: When voiceover starts, the background music (BGM) must elegantly duck (fade down texturally) and fade back up when the voice stops. If the BGM rudely cuts off or drowns out the voice, score < 6. Also check for subtitle desync.
+3. 'adherence_score': BGM Contextual Match. The BGM must fit the StylePrompt and narrative atmosphere. If a dark cyberpunk scene plays epic heroic music, or a sad desolate scene plays upbeat pop, score < 5. Did the video obey the visual directives inside the JSON?
+4. 'tone_score': Narrative Completeness. Does the pacing give the viewer breathing room? If a short line rushes abruptly to the next scene without a dramatic pause, penalize it. If a viewer watching this would be confused about the story, or if the ending (e.g., just saying "Not tonight") lacks context and narrative closure, score < 6.
 
 If 'visual_score' or 'audio_sync_score' are below 8, or the total score is below 32, you MUST provide 'action': 'REJECT'. Otherwise, 'APPROVE'.
 In 'feedback', relentlessly pinpoint the artistic and technical flaws. Be specific.

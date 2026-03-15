@@ -115,11 +115,16 @@ export const PanelSlide: React.FC<PanelSlideProps> = ({ panel, colorFilter }) =>
   }
 
   // ─── Subtitle animation ───
-  // Sanitize dialogue: remove prefixes like "VO:", "V.O.", "VO - ", and surrounding quotes.
+  // Sanitize dialogue: remove prefixes like "VO:", "V.O.", "VO - ", "[Narrator]" and surrounding quotes.
   const sanitizeDialogue = (text: string) => {
     if (!text) return "";
-    let clean = text.replace(/^(?:VO|V\.O\.|Narrator)[^a-zA-Z0-9="'\u4e00-\u9fa5]*/i, "");
-    clean = clean.replace(/^['"](.*)['"]$/, "$1"); // remove surrounding quotes
+    let clean = text.trim();
+    // Strip common prefixes
+    clean = clean.replace(/^(?:VO|V\.O\.|Narrator|Voiceover|Voice Over|\[.*?\])\s*[:\-]*\s*/i, "");
+    // Also remove any stray starting or ending quotes loosely 
+    clean = clean.replace(/^["']+(.*?)["']+$/s, "$1");
+    // Strip again in case it was "VO: 'Hello'"
+    clean = clean.replace(/^(?:VO|V\.O\.|Narrator|Voiceover|Voice Over|\[.*?\])\s*[:\-]*\s*/i, "");
     return clean.trim();
   };
 
