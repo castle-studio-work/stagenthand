@@ -399,6 +399,11 @@ echo "story text" \
 | Phase 9.5 | 完成 | Agentic 後製（postprod evaluate/apply/rerender/loop） |
 | HITL 修補 | 完成 | 補齊 outline/storyboard/final 三個缺失 checkpoint，stderr 通知 |
 | 角色整合 | 完成 | character generate/register + pipeline 自動 registry lookup |
+| Phase 10a | 完成 | 多角色 TTS + 角色語音路由 |
+| Phase 10b | 完成 | 垂直影片 9:16 格式支援 |
+| Phase 10c | 完成 | 系列連續性（滑動視窗記憶） |
+| Phase 10.0 | 完成 | 結構化 `DialogueLine`（多角色 TTS 前置） |
+| Phase 10.1 | 完成 | 字幕直接修補 + LLM 翻譯（`--language`） |
 
 ---
 

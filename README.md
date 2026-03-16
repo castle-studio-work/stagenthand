@@ -395,6 +395,11 @@ All user-supplied strings (IDs, file paths, prompts) pass through `internal/doma
 | Phase 8 | Done | Directives system (StylePrompt / BGMTags), Smart Resume |
 | Phase 9 | Done | Multi-language TTS, AI Critic auto-retry, Character Registry, batch production |
 | Phase 9.5 | Done | Agentic post-production (postprod evaluate/apply/rerender/loop) |
+| Phase 10a | Done | Multi-speaker TTS with per-character voice routing |
+| Phase 10b | Done | Vertical video 9:16 format support |
+| Phase 10c | Done | Series continuity with sliding window memory |
+| Phase 10.0 | Done | Structured `DialogueLine` (prerequisite for multi-speaker) |
+| Phase 10.1 | Done | Direct subtitle patching + LLM translation (`--language`) |
 
 ---
 
