@@ -475,6 +475,112 @@ func TestApplier_unknown_op_type(t *testing.T) {
 	}
 }
 
+func TestApplier_patch_subtitle_track(t *testing.T) {
+	tests := []struct {
+		name        string
+		panelIndex  interface{}
+		text        interface{}
+		wantErr     bool
+		wantDialogue string
+	}{
+		{
+			name:         "valid patch by index",
+			panelIndex:   float64(0),
+			text:         "Updated subtitle",
+			wantErr:      false,
+			wantDialogue: "Updated subtitle",
+		},
+		{
+			name:         "valid patch second panel",
+			panelIndex:   float64(1),
+			text:         "Second panel updated",
+			wantErr:      false,
+			wantDialogue: "Second panel updated",
+		},
+		{
+			name:       "index out of range",
+			panelIndex: float64(99),
+			text:       "ghost",
+			wantErr:    true,
+		},
+		{
+			name:       "negative index",
+			panelIndex: float64(-1),
+			text:       "ghost",
+			wantErr:    true,
+		},
+		{
+			name:       "missing panel_index",
+			panelIndex: nil,
+			text:       "ghost",
+			wantErr:    true,
+		},
+		{
+			name:       "missing text",
+			panelIndex: float64(0),
+			text:       nil,
+			wantErr:    true,
+		},
+		{
+			name:         "integer panel_index",
+			panelIndex:   0,
+			text:         "Int index works",
+			wantErr:      false,
+			wantDialogue: "Int index works",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			applier := postprod.NewDefaultEditApplier()
+			props := makeProps()
+			props.Panels[0].Dialogue = "Original first"
+			props.Panels[1].Dialogue = "Original second"
+
+			params := map[string]interface{}{}
+			if tt.panelIndex != nil {
+				params["panel_index"] = tt.panelIndex
+			}
+			if tt.text != nil {
+				params["text"] = tt.text
+			}
+
+			plan := makePlan([]domain.EditOperation{
+				{
+					Type:     domain.EditOpPatchSubtitleTrack,
+					Params:   params,
+					Priority: 1,
+				},
+			})
+
+			result, err := applier.Apply(context.Background(), plan, props)
+			if err != nil {
+				t.Fatalf("Apply() error: %v", err)
+			}
+
+			if tt.wantErr {
+				if result.OperationsFailed != 1 {
+					t.Errorf("OperationsFailed: got %d, want 1", result.OperationsFailed)
+				}
+			} else {
+				if result.OperationsFailed != 0 {
+					t.Errorf("OperationsFailed: got %d, want 0", result.OperationsFailed)
+				}
+				idx := 0
+				if f, ok := tt.panelIndex.(float64); ok {
+					idx = int(f)
+				} else if i, ok := tt.panelIndex.(int); ok {
+					idx = i
+				}
+				got := result.UpdatedProps.Panels[idx].Dialogue
+				if got != tt.wantDialogue {
+					t.Errorf("Dialogue: got %q, want %q", got, tt.wantDialogue)
+				}
+			}
+		})
+	}
+}
+
 func TestApplier_rerender_is_noop(t *testing.T) {
 	applier := postprod.NewDefaultEditApplier()
 	props := makeProps()

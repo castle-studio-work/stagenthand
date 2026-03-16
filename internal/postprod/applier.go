@@ -75,6 +75,9 @@ func applyOperation(props *domain.RemotionProps, op domain.EditOperation) error 
 	case domain.EditOpReplaceBGM:
 		return applyReplaceBGM(props, op)
 
+	case domain.EditOpPatchSubtitleTrack:
+		return applyPatchSubtitleTrack(props, op)
+
 	case domain.EditOpRerender:
 		// no-op: handled by cmd layer
 		return nil
@@ -225,6 +228,27 @@ func applyRegenerateAudio(props *domain.RemotionProps, op domain.EditOperation) 
 		return err
 	}
 	panel.AudioURL = ""
+	return nil
+}
+
+func applyPatchSubtitleTrack(props *domain.RemotionProps, op domain.EditOperation) error {
+	idxRaw, ok := op.Params["panel_index"]
+	if !ok {
+		return fmt.Errorf("patch_subtitle_track: params[\"panel_index\"] is required")
+	}
+	idxFloat, ok := toFloat64(idxRaw)
+	if !ok {
+		return fmt.Errorf("patch_subtitle_track: params[\"panel_index\"] must be a number")
+	}
+	idx := int(idxFloat)
+	if idx < 0 || idx >= len(props.Panels) {
+		return fmt.Errorf("patch_subtitle_track: panel_index %d out of range [0, %d)", idx, len(props.Panels))
+	}
+	text, ok := op.Params["text"].(string)
+	if !ok {
+		return fmt.Errorf("patch_subtitle_track: params[\"text\"] must be a string")
+	}
+	props.Panels[idx].Dialogue = text
 	return nil
 }
 

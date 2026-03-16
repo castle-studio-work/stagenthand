@@ -22,6 +22,7 @@ const (
 	EditOpPatchPanelDirective  EditOperationType = "patch_panel_directive"
 	EditOpPatchGlobalDirective EditOperationType = "patch_global_directive"
 	EditOpRerender             EditOperationType = "rerender"
+	EditOpPatchSubtitleTrack   EditOperationType = "patch_subtitle_track"
 )
 
 // EditOperation represents a single post-production action.

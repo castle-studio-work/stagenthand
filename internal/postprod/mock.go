@@ -77,3 +77,15 @@ func (m *MockVideoRenderer) Render(_ context.Context, _ []byte, _ string) error 
 	m.CallCount++
 	return nil
 }
+
+// MockPropsEvaluator is a test double for the PropsEvaluator interface.
+type MockPropsEvaluator struct {
+	Result    *PropsEvaluation
+	Err       error
+	CallCount int
+}
+
+func (m *MockPropsEvaluator) Evaluate(_ context.Context, _ []byte) (*PropsEvaluation, error) {
+	m.CallCount++
+	return m.Result, m.Err
+}

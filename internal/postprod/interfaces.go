@@ -45,3 +45,14 @@ type EditApplier interface {
 type VideoRenderer interface {
 	Render(ctx context.Context, propsJSON []byte, outputPath string) error
 }
+
+// PropsEvaluation is the result of a pre-render props-only quality check.
+type PropsEvaluation struct {
+	Issues []string `json:"issues"`
+	OK     bool     `json:"ok"`
+}
+
+// PropsEvaluator checks RemotionProps JSON for obvious issues before rendering.
+type PropsEvaluator interface {
+	Evaluate(ctx context.Context, propsJSON []byte) (*PropsEvaluation, error)
+}
