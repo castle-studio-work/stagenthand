@@ -280,7 +280,8 @@ func (o *Orchestrator) transformStoryboardToPanels(ctx context.Context, sb domai
 	if err := jsonUnmarshal(panelsJSON, &result); err != nil {
 		return nil, fmt.Errorf("LLM produced invalid panels JSON: %w", err)
 	}
-	return result.Panels, nil
+	// Post-process: strip any speaker/panel prefix artefacts the LLM may have added.
+	return cleanPanels(result.Panels), nil
 }
 
 // checkpoint pauses for HITL approval unless SkipHITL is set.

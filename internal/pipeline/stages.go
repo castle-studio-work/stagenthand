@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/baochen10luo/stagenthand/internal/domain"
 )
@@ -34,6 +36,79 @@ func RunTransformationStage(ctx context.Context, transformer Transformer, system
 	}
 
 	return output, nil
+}
+
+// rePanelPrefix matches "Panel N:" prefixes (case-insensitive).
+var rePanelPrefix = regexp.MustCompile(`(?i)^panel\s+\d+:\s*`)
+
+// reSpeakerPrefix matches "SomeName:" or "VO (Name):" style prefixes followed by quoted content,
+// e.g. `VO (Narrator): '...'` or `奶奶: '...'`.
+// Group 1 captures the inner text without surrounding quotes.
+var reSpeakerPrefix = regexp.MustCompile(`^[^'"：:]+[：:]\s*['"](.+?)['"]$`)
+
+// reSpeakerPrefixUnquoted matches speaker prefixes where the content is NOT quoted,
+// e.g. `奶奶: 啊，你來了！`.
+var reSpeakerPrefixUnquoted = regexp.MustCompile(`^[A-Za-z\p{Han}()\s]+[：:]\s+(.+)$`)
+
+// CleanDialogue strips common speaker/panel prefix patterns from a dialogue or text field,
+// returning only the spoken words themselves.
+// Exported for testing; internal callers use cleanDialogue.
+func CleanDialogue(s string) string {
+	return cleanDialogue(s)
+}
+
+// cleanDialogue is the internal implementation.
+func cleanDialogue(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return s
+	}
+
+	// 1. Remove "Panel N:" prefix.
+	s = rePanelPrefix.ReplaceAllString(s, "")
+	s = strings.TrimSpace(s)
+
+	// 1b. After Panel prefix removal, strip a single outer wrapping quote layer so that
+	//     `"VO (Alex): '在路上'"` becomes `VO (Alex): '在路上'` and can be further processed.
+	if len(s) >= 2 {
+		first, last := s[0], s[len(s)-1]
+		if (first == '"' && last == '"') || (first == '\'' && last == '\'') {
+			s = strings.TrimSpace(s[1 : len(s)-1])
+		}
+	}
+
+	// 2. Remove "Speaker: 'content'" format → extract quoted content only.
+	if m := reSpeakerPrefix.FindStringSubmatch(s); len(m) > 1 {
+		s = m[1]
+		return strings.TrimSpace(s)
+	}
+
+	// 3. Remove "Speaker: content" format (unquoted) — only when the prefix looks like
+	//    a name/VO tag, not a sentence containing a colon (e.g. Chinese time expressions).
+	//    We require the prefix to be ≤ 20 chars to avoid stripping legitimate content.
+	if m := reSpeakerPrefixUnquoted.FindStringSubmatch(s); len(m) > 1 {
+		prefix := s[:strings.Index(s, m[1])]
+		if len([]rune(prefix)) <= 22 {
+			s = m[1]
+			return strings.TrimSpace(s)
+		}
+	}
+
+	// 4. Strip wrapping quotes left over after prefix removal.
+	s = strings.Trim(s, `'"`)
+	return strings.TrimSpace(s)
+}
+
+// cleanPanels applies cleanDialogue to the Dialogue field and every DialogueLine.Text
+// within a slice of panels.
+func cleanPanels(panels []domain.Panel) []domain.Panel {
+	for i := range panels {
+		panels[i].Dialogue = cleanDialogue(panels[i].Dialogue)
+		for j := range panels[i].DialogueLines {
+			panels[i].DialogueLines[j].Text = cleanDialogue(panels[i].DialogueLines[j].Text)
+		}
+	}
+	return panels
 }
 
 // languageInstructions maps BCP-47 language tags to dialogue instructions appended to PromptStoryboardToPanels.
@@ -169,5 +244,15 @@ RULES:
 2. Opening panel: prefer "ken_burns_out" to establish the world
 3. Climax/conflict panel: prefer "ken_burns_in" + transition_in "cut"
 4. Final panel: prefer "ken_burns_out" + transition_out "fade"
-5. motion_intensity should vary — don't use 0.05 for every panel`
+5. motion_intensity should vary — don't use 0.05 for every panel
+
+CRITICAL DIALOGUE FORMAT RULES:
+- The "dialogue" field and every "text" field inside "dialogue_lines" MUST contain ONLY the spoken words themselves.
+- Do NOT include speaker names, character prefixes, "VO:", "VO (Name):", or "Panel N:" prefixes anywhere in these fields.
+- Do NOT wrap the text in quotes.
+- CORRECT:   "dialogue": "在一個珍惜傳統的世界裡..."
+- WRONG:     "dialogue": "VO (Narrator): '在一個珍惜傳統的世界裡...'"
+- WRONG:     "dialogue": "奶奶: '啊，你來了！'"
+- WRONG:     "dialogue": "Panel 1: \"VO (Alex): '...'\""
+- The "speaker" field in dialogue_lines is the correct place to record who is speaking.`
 )
